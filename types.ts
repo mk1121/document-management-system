@@ -1,0 +1,30 @@
+export interface DocMaster {
+  id: string; // UUID
+  name: string;
+  dob: string;
+  phone: string;
+  createdAt: number;
+  syncStatus: 'pending' | 'synced' | 'failed';
+}
+
+export interface DocDetail {
+  id: string;
+  masterId: string;
+  sequence: number; // For ordering (1st, 2nd, etc.)
+  imageData: string; // Base64 compressed string
+  mimeType: string;
+}
+
+// Combined type for UI consumption
+export interface CompleteDocument {
+  master: DocMaster;
+  details: DocDetail[];
+}
+
+export interface SyncResult {
+  success: number;
+  failed: number;
+  errors: string[];
+}
+
+export type ViewMode = 'form' | 'list';

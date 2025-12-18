@@ -1,0 +1,5 @@
+{
+  "name": "DocuDigitize Pro Lossless",
+  "description": "A high-performance offline-first document digitization tool designed for high-volume processing. Features master-detail architecture, high-efficiency WebP compression, sequence management, and Oracle DB synchronization.",
+  "requestFramePermissions": ["camera"]
+}

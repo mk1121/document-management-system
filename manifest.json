@@ -1,0 +1,20 @@
+{
+  "name": "DocuDigitize Pro",
+  "short_name": "DocuDigitize",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#c80000",
+  "icons": [
+    {
+      "src": "https://cdn.icon-icons.com/icons2/2699/PNG/512/camera_icon_167664.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn.icon-icons.com/icons2/2699/PNG/512/camera_icon_167664.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
