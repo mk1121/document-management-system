@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon } from 'lucide-react';
-import { DocMaster, DocDetail, ViewMode } from './types';
+import { DocMaster, DocDetail, ViewMode, ReferenceItem } from './types';
 import * as DB from './services/db';
 import { compressImage } from './services/imageService';
 import { useToast } from './components/Toast';
@@ -29,6 +29,8 @@ const generateUUID = () => {
 };
 
 const ITEMS_PER_PAGE = 10;
+// Default to relative path to use Vite Proxy in dev, or same-domain in prod
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 // --- MAIN APP COMPONENT ---
 
@@ -48,7 +50,8 @@ export default function App() {
   const [totalDocs, setTotalDocs] = useState(0);
 
   // Form State
-  const [formData, setFormData] = useState({ name: '', dob: '', phone: '' });
+  const [formData, setFormData] = useState({ name: '', dob: '', phone: '', refId: '' });
+  const [refs, setRefs] = useState<ReferenceItem[]>([]);
   const [images, setImages] = useState<{ id: string; url: string; file?: File }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -79,6 +82,14 @@ export default function App() {
 
       await refreshCounts();
       await loadDocs(1);
+
+      // Fetch references
+      fetch(`${API_BASE_URL}/api/v1/references`)
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) setRefs(data);
+        })
+        .catch(err => console.error("Failed to fetch refs", err));
     };
 
     performInitialChecks();
@@ -166,7 +177,8 @@ export default function App() {
       setFormData({
         name: doc.name,
         dob: doc.dob,
-        phone: doc.phone
+        phone: doc.phone,
+        refId: doc.refId ? String(doc.refId) : ''
       });
       setImages(details.map(d => ({
         id: d.id,
@@ -185,8 +197,8 @@ export default function App() {
   };
 
   const handleSave = async () => {
-    if (!formData.name || !formData.phone || images.length === 0) {
-      showToast('Please fill in Name, Phone, and attach at least one document.', 'warning');
+    if (!formData.name || !formData.phone || !formData.refId || images.length === 0) {
+      showToast('Please fill in Reference, Name, Phone, and attach at least one document.', 'warning');
       return;
     }
 
@@ -199,6 +211,7 @@ export default function App() {
         name: formData.name,
         dob: formData.dob,
         phone: formData.phone,
+        refId: formData.refId ? Number(formData.refId) : undefined,
         createdAt: Date.now(),
         syncStatus: 'pending',
       };
@@ -225,7 +238,7 @@ export default function App() {
       }
 
       // Success
-      setFormData({ name: '', dob: '', phone: '' });
+      setFormData({ name: '', dob: '', phone: '', refId: '' });
       setImages([]);
       refreshCounts();
 
@@ -245,8 +258,7 @@ export default function App() {
     const totalToSync = docsToSync.length;
 
     // Determine Backend URL
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://jmktgdd2.inc1.devtunnels.ms:3001';
-    const syncUrl = `${apiBase}/api/v1/documents/sync`;
+    const syncUrl = `${API_BASE_URL}/api/v1/documents/sync`;
 
     // Iterate with index for progress tracking
     for (let i = 0; i < totalToSync; i++) {
@@ -263,6 +275,7 @@ export default function App() {
             fullName: doc.name,
             dateOfBirth: doc.dob,
             phoneNumber: doc.phone,
+            refId: doc.refId,
             capturedAt: doc.createdAt,
           },
           attachments: details.map((d) => ({
@@ -417,93 +430,107 @@ export default function App() {
                   placeholder='e.g. 01711...'
                   required
                 />
+                <div className='sm:col-span-2'>
+                  <FormField
+                    label='REF'
+                    type='select'
+                    value={formData.refId}
+                    onChange={(e: any) => setFormData({ ...formData, refId: e.target.value })}
+                    placeholder='Select Reference Type'
+                    required
+                    options={refs.map(r => ({ label: r.name, value: r.id }))}
+                  />
+                </div>
               </div>
 
               {/* Image Section */}
-              <div className='mt-6'>
-                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
-                  Document Images (First image is primary)
-                </label>
+              {/* Image Section - Only show when required fields are filled */}
+              {formData.name && formData.phone && formData.refId && (
+                <div className='mt-6'>
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                    Document Images (First image is primary)
+                  </label>
 
-                <div className='flex flex-wrap gap-4 mb-4'>
-                  {images.map((img, index) => (
-                    <div
-                      key={img.id}
-                      className='relative group w-24 h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
-                    >
-                      <img
-                        src={img.url}
-                        alt={`Doc ${index + 1}`}
-                        className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
-                        onClick={() => setPreviewImage(img.url)}
-                      />
-                      <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                        {index + 1}
-                      </div>
+                  <div className='flex flex-wrap gap-4 mb-4'>
+                    {images.map((img, index) => (
+                      <div
+                        key={img.id}
+                        className='relative group w-24 h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
+                      >
+                        <img
+                          src={img.url}
+                          alt={`Doc ${index + 1}`}
+                          className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
+                          onClick={() => setPreviewImage(img.url)}
+                        />
+                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                          {index + 1}
+                        </div>
 
-                      {/* Controls Overlay */}
-                      <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-1 py-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                        <button
-                          onClick={() => moveImage(index, 'up')}
-                          disabled={index === 0}
-                          className='text-white hover:text-blue-300 disabled:opacity-30'
-                        >
-                          <MoveLeft size={14} />
-                        </button>
-                        <button
-                          onClick={() => removeImage(img.id)}
-                          className='text-red-400 hover:text-red-200'
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                        <button
-                          onClick={() => moveImage(index, 'down')}
-                          disabled={index === images.length - 1}
-                          className='text-white hover:text-blue-300 disabled:opacity-30'
-                        >
-                          <MoveRight size={14} />
-                        </button>
-                      </div>
+                        {/* Controls Overlay */}
+                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-1 py-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <button
+                            onClick={() => moveImage(index, 'up')}
+                            disabled={index === 0}
+                            className='text-white hover:text-blue-300 disabled:opacity-30'
+                          >
+                            <MoveLeft size={14} />
+                          </button>
+                          <button
+                            onClick={() => removeImage(img.id)}
+                            className='text-red-400 hover:text-red-200'
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                          <button
+                            onClick={() => moveImage(index, 'down')}
+                            disabled={index === images.length - 1}
+                            className='text-white hover:text-blue-300 disabled:opacity-30'
+                          >
+                            <MoveRight size={14} />
+                          </button>
+                        </div>
 
-                      {/* Hint Overlay */}
-                      <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                        <div className='bg-black/50 rounded-full p-1'>
-                          <Eye size={20} className='text-white' />
+                        {/* Hint Overlay */}
+                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          <div className='bg-black/50 rounded-full p-1'>
+                            <Eye size={20} className='text-white' />
+                          </div>
                         </div>
                       </div>
+                    ))}
+
+                    {/* Add Buttons */}
+                    <div className='flex flex-col gap-2'>
+                      {/* Camera Button */}
+                      <button
+                        onClick={() => setShowCamera(true)}
+                        className='w-24 h-14 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
+                      >
+                        <Camera className='text-oracle-600 mb-0.5' size={20} />
+                        <span className='text-[10px] text-gray-600 dark:text-gray-300 font-medium'>
+                          Camera
+                        </span>
+                      </button>
+
+                      {/* File Upload Button */}
+                      <label className='w-24 h-14 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
+                        <div className='flex flex-col items-center text-center p-1'>
+                          <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={20} />
+                          <span className='text-[10px] text-gray-500 dark:text-gray-400'>File</span>
+                        </div>
+                        <input
+                          type='file'
+                          accept='image/*'
+                          multiple
+                          className='hidden'
+                          onChange={handleImageUpload}
+                        />
+                      </label>
                     </div>
-                  ))}
-
-                  {/* Add Buttons */}
-                  <div className='flex flex-col gap-2'>
-                    {/* Camera Button */}
-                    <button
-                      onClick={() => setShowCamera(true)}
-                      className='w-24 h-14 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
-                    >
-                      <Camera className='text-oracle-600 mb-0.5' size={20} />
-                      <span className='text-[10px] text-gray-600 dark:text-gray-300 font-medium'>
-                        Camera
-                      </span>
-                    </button>
-
-                    {/* File Upload Button */}
-                    <label className='w-24 h-14 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
-                      <div className='flex flex-col items-center text-center p-1'>
-                        <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={20} />
-                        <span className='text-[10px] text-gray-500 dark:text-gray-400'>File</span>
-                      </div>
-                      <input
-                        type='file'
-                        accept='image/*'
-                        multiple
-                        className='hidden'
-                        onChange={handleImageUpload}
-                      />
-                    </label>
                   </div>
                 </div>
-              </div>
+              )}
 
               <div className='sticky bottom-0 z-10 bg-white dark:bg-gray-800 mt-8 pt-6 pb-2 border-t border-gray-200 dark:border-gray-700'>
                 <button

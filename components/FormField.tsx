@@ -8,6 +8,7 @@ interface FormFieldProps {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   placeholder?: string;
   required?: boolean;
+  options?: { label: string; value: string | number }[];
 }
 
 export const FormField: React.FC<FormFieldProps> = ({
@@ -17,6 +18,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   onChange,
   placeholder,
   required,
+  ...rest
 }) => {
   const dateInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
@@ -137,6 +139,29 @@ export const FormField: React.FC<FormFieldProps> = ({
       }
     }
   };
+
+  if (type === 'select') {
+    return (
+      <div className='mb-4'>
+        <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
+          {label} {required && <span className='text-red-500'>*</span>}
+        </label>
+        <select
+          value={value}
+          onChange={(e) => onChange(e as any)}
+          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-oracle-500 focus:border-oracle-500 dark:bg-gray-700 dark:text-white sm:text-sm'
+        >
+          <option value="">{placeholder || 'Select an option'}</option>
+          {/* @ts-ignore */}
+          {(rest.options || []).map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
 
   return (
     <div className='mb-4'>
