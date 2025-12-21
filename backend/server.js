@@ -47,6 +47,26 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
+// Reference Data Endpoint
+app.get('/api/v1/references', async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute('SELECT ID, NAME FROM DOC_REFS ORDER BY NAME');
+    const refs = result.rows.map(row => ({ id: row[0], name: row[1] }));
+    res.json(refs);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (e) { console.error(e); }
+    }
+  }
+});
+
 // Sync Endpoint
 app.post('/api/v1/documents/sync', async (req, res) => {
   let connection;
@@ -74,8 +94,8 @@ app.post('/api/v1/documents/sync', async (req, res) => {
     // 2. Insert Master Record
     // Note: capturedAt comes as ms timestamp. Converting to Oracle Date/Timestamp.
     const sqlMaster = `
-      INSERT INTO DOC_MASTERS (FRONTEND_UUID, FULL_NAME, DOB, PHONE, CREATED_AT)
-      VALUES (:uuid, :name, TO_DATE(:dob, 'YYYY-MM-DD'), :phone, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
+      INSERT INTO DOC_MASTERS (FRONTEND_UUID, FULL_NAME, DOB, PHONE, REF_ID, CREATED_AT)
+      VALUES (:uuid, :name, TO_DATE(:dob, 'YYYY-MM-DD'), :phone, :refId, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
       RETURNING ID INTO :id
     `;
 
@@ -84,6 +104,7 @@ app.post('/api/v1/documents/sync', async (req, res) => {
       name: metadata.fullName,
       dob: metadata.dateOfBirth, // Expecting YYYY-MM-DD from frontend
       phone: metadata.phoneNumber,
+      refId: metadata.refId || null, // New field
       createdAt: metadata.capturedAt,
       id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
     });
