@@ -50,7 +50,15 @@ export default function App() {
   const [totalDocs, setTotalDocs] = useState(0);
 
   // Form State
-  const [formData, setFormData] = useState({ name: '', dob: '', phone: '', refId: '' });
+  const [formData, setFormData] = useState({
+    name: '',
+    gender: 'Male', // Default to Male 
+    dob: '',
+    age: '', // Auto-calculated
+    phone: '',
+    address: '',
+    refId: ''
+  });
   const [refs, setRefs] = useState<ReferenceItem[]>([]);
   const [images, setImages] = useState<{ id: string; url: string; file?: File }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -83,13 +91,21 @@ export default function App() {
       await refreshCounts();
       await loadDocs(1);
 
-      // Fetch references
-      fetch(`${API_BASE_URL}/api/v1/references`)
-        .then(res => res.json())
-        .then(data => {
-          if (Array.isArray(data)) setRefs(data);
-        })
-        .catch(err => console.error("Failed to fetch refs", err));
+      const cachedRefs = localStorage.getItem('cached_refs');
+      if (cachedRefs) {
+        setRefs(JSON.parse(cachedRefs));
+      } else {
+        // Fetch references
+        fetch(`${API_BASE_URL}/api/v1/references`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              setRefs(data);
+              localStorage.setItem('cached_refs', JSON.stringify(data));
+            }
+          })
+          .catch(err => console.error("Failed to fetch refs", err));
+      }
     };
 
     performInitialChecks();
@@ -120,6 +136,35 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load documents', e);
     }
+  };
+
+  const calculateAge = (dobString: string) => {
+    if (!dobString) return '';
+    const birthDate = new Date(dobString);
+    const today = new Date();
+
+    let years = today.getFullYear() - birthDate.getFullYear();
+    let months = today.getMonth() - birthDate.getMonth();
+
+    if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
+      years--;
+      months = months + 12;
+    }
+    // Re-calculate precise month diff if years became 0
+    if (years === 0) {
+      // If less than a year, calculate total months difference
+      const m = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
+      return `${m}M`;
+    }
+
+    return `${years}y`;
+  };
+
+  // Update logic to trigger age calculation
+  const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newDob = e.target.value;
+    const newAge = calculateAge(newDob);
+    setFormData({ ...formData, dob: newDob, age: newAge });
   };
 
   const handleImageFile = async (file: File) => {
@@ -176,8 +221,11 @@ export default function App() {
       const details = await DB.getDocumentDetails(doc.id);
       setFormData({
         name: doc.name,
+        gender: doc.gender || 'Male',
         dob: doc.dob,
+        age: doc.age || '',
         phone: doc.phone,
+        address: doc.address || '',
         refId: doc.refId ? String(doc.refId) : ''
       });
       setImages(details.map(d => ({
@@ -209,8 +257,11 @@ export default function App() {
       const master: DocMaster = {
         id: masterId,
         name: formData.name,
+        gender: formData.gender,
         dob: formData.dob,
+        age: formData.age,
         phone: formData.phone,
+        address: formData.address,
         refId: formData.refId ? Number(formData.refId) : undefined,
         createdAt: Date.now(),
         syncStatus: 'pending',
@@ -238,7 +289,7 @@ export default function App() {
       }
 
       // Success
-      setFormData({ name: '', dob: '', phone: '', refId: '' });
+      setFormData({ name: '', gender: 'Male', dob: '', age: '', phone: '', address: '', refId: '' });
       setImages([]);
       refreshCounts();
 
@@ -273,8 +324,11 @@ export default function App() {
           transactionId: doc.id,
           metadata: {
             fullName: doc.name,
+            gender: doc.gender,
             dateOfBirth: doc.dob,
+            age: doc.age,
             phoneNumber: doc.phone,
+            address: doc.address,
             refId: doc.refId,
             capturedAt: doc.createdAt,
           },
@@ -300,9 +354,22 @@ export default function App() {
           throw new Error(errData.message || `Server error ${response.status}`);
         }
 
-        // Mark as synced locally
         await DB.markAsSynced(doc.id);
         successCount++;
+
+        // Invalidate Cache after successful sync (to fetch fresh data if needed, as per requirement "db theke new query calai data niye asbe")
+        localStorage.removeItem('cached_refs');
+        // Use setTimeout to allow the process to finish before refetching, or just let next reload handle it.
+        // Or aggressively refetch now:
+        fetch(`${API_BASE_URL}/api/v1/references`)
+          .then(res => res.json())
+          .then(data => {
+            if (Array.isArray(data)) {
+              setRefs(data);
+              localStorage.setItem('cached_refs', JSON.stringify(data));
+            }
+          }).catch(err => console.log('Refetch failed silently'));
+
       } catch (docErr: any) {
         console.error(`Failed to sync doc ${doc.id}:`, docErr);
         // Explicitly mark as failed so it can be retried later
@@ -420,7 +487,7 @@ export default function App() {
                   label='Date of Birth'
                   type='date'
                   value={formData.dob}
-                  onChange={(e: any) => setFormData({ ...formData, dob: e.target.value })}
+                  onChange={handleDobChange}
                 />
                 <FormField
                   label='Phone Number'
@@ -430,6 +497,45 @@ export default function App() {
                   placeholder='e.g. 01711...'
                   required
                 />
+
+                <div className='sm:col-span-1'>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e: any) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+                  >
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label="Age"
+                    type="text"
+                    value={formData.age}
+                    //@ts-ignore
+                    readOnly={true}
+                    disabled={true}
+                    placeholder="Auto-calculated"
+                  />
+                </div>
+
+                <div className='sm:col-span-2'>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e: any) => setFormData({ ...formData, address: e.target.value })}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+                  />
+                </div>
                 <div className='sm:col-span-2'>
                   <FormField
                     label='REF'

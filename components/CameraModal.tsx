@@ -22,6 +22,10 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
 
     const initCamera = async () => {
       try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          throw new Error('Camera API not available. This feature requires HTTPS or localhost.');
+        }
+
         if (stream) {
           stream.getTracks().forEach((track) => track.stop());
         }
@@ -50,7 +54,7 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
         const track = newStream.getVideoTracks()[0];
         const capabilities = track.getCapabilities() as any;
 
-        if (capabilities.torch) {
+        if (capabilities && capabilities.torch) {
           setSupportsFlash(true);
         } else {
           setSupportsFlash(false);
@@ -60,7 +64,18 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
       } catch (err: any) {
         console.error('Camera Error:', err);
         if (mounted) {
-          setError('Could not access camera. Please ensure permissions are granted.');
+          let msg = 'Could not access camera.';
+          if (err.message === 'Camera API not available. This feature requires HTTPS or localhost.') {
+            msg = err.message;
+          } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+            msg = 'Camera permission denied. Please allow access in browser settings.';
+          } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+            msg = 'No camera device found.';
+          } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+            msg = 'Camera is already in use by another application.';
+          }
+
+          setError(msg);
         }
       }
     };
@@ -134,15 +149,21 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
       <div className='absolute inset-0 flex items-center justify-center overflow-hidden bg-black'>
         {error ? (
           <div className='px-6 text-center text-white z-20'>
-            <div className='bg-red-900/50 p-4 rounded-lg border border-red-500/50 backdrop-blur-sm'>
-              <p className='mb-2 font-bold'>Camera Error</p>
-              <p className='text-sm opacity-90'>{error}</p>
+            <div className='bg-red-900/50 p-4 rounded-lg border border-red-500/50 backdrop-blur-sm max-w-sm mx-auto'>
+              <p className='mb-2 font-bold flex items-center justify-center gap-2'>
+                <X size={20} /> Camera Error
+              </p>
+              <p className='text-sm opacity-90 mb-4'>{error}</p>
+
+              <div className='text-xs bg-white/10 p-2 rounded'>
+                <strong>Tip:</strong> You can upload an existing photo using the "File" button instead.
+              </div>
             </div>
             <button
               onClick={onClose}
-              className='mt-4 px-4 py-2 bg-white text-black rounded font-medium'
+              className='mt-6 px-6 py-2 bg-white text-black rounded-full font-medium hover:bg-gray-200 transition-colors'
             >
-              Close
+              Close Camera
             </button>
           </div>
         ) : (
@@ -163,11 +184,10 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
           {supportsFlash && (
             <button
               onClick={toggleFlash}
-              className={`p-2 rounded-full backdrop-blur-md transition-all ${
-                flashOn
-                  ? 'bg-yellow-500/20 text-yellow-300'
-                  : 'bg-black/30 text-white hover:bg-black/50'
-              }`}
+              className={`p-2 rounded-full backdrop-blur-md transition-all ${flashOn
+                ? 'bg-yellow-500/20 text-yellow-300'
+                : 'bg-black/30 text-white hover:bg-black/50'
+                }`}
               title='Toggle Flash'
             >
               {flashOn ? <Zap size={24} fill='currentColor' /> : <ZapOff size={24} />}

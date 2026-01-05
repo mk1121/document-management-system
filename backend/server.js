@@ -80,7 +80,7 @@ app.post('/api/v1/documents/sync', async (req, res) => {
     connection = await oracledb.getConnection(dbConfig);
 
     // 1. Check idempotency (avoid duplicate inserts for same transactionId)
-    const checkSql = `SELECT ID FROM DOC_MASTERS WHERE FRONTEND_UUID = :uuid`;
+    const checkSql = `SELECT PATIENT_ID FROM PATIENT_INFO WHERE FRONTEND_UUID = :uuid`;
     const checkResult = await connection.execute(checkSql, [transactionId]);
 
     if (checkResult.rows.length > 0) {
@@ -91,29 +91,31 @@ app.post('/api/v1/documents/sync', async (req, res) => {
       });
     }
 
-    // 2. Insert Master Record
-    // Note: capturedAt comes as ms timestamp. Converting to Oracle Date/Timestamp.
+    // 2. Insert Master Record (PATIENT_INFO)
     const sqlMaster = `
-      INSERT INTO DOC_MASTERS (FRONTEND_UUID, FULL_NAME, DOB, PHONE, REF_ID, CREATED_AT)
-      VALUES (:uuid, :name, TO_DATE(:dob, 'YYYY-MM-DD'), :phone, :refId, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
-      RETURNING ID INTO :id
+      INSERT INTO PATIENT_INFO (FRONTEND_UUID, PATIENT_NAME, GENDER, DOB, AGE, CONTACT_NO, ADDRESS, REF_ID, CREATED_AT)
+      VALUES (:uuid, :name, :gender, TO_DATE(:dob, 'YYYY-MM-DD'), :age, :contact, :address, :refId, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
+      RETURNING PATIENT_ID INTO :id
     `;
 
     const resultMaster = await connection.execute(sqlMaster, {
       uuid: transactionId,
       name: metadata.fullName,
-      dob: metadata.dateOfBirth, // Expecting YYYY-MM-DD from frontend
-      phone: metadata.phoneNumber,
-      refId: metadata.refId || null, // New field
+      gender: metadata.gender || null, // New Field
+      dob: metadata.dateOfBirth,
+      age: metadata.age || null, // New Field
+      contact: metadata.phoneNumber,
+      address: metadata.address || null, // New Field
+      refId: metadata.refId || null,
       createdAt: metadata.capturedAt,
       id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
     });
 
     const masterId = resultMaster.outBinds.id[0];
 
-    // 3. Insert Images (Details)
+    // 3. Insert Images (PATIENT_DOC_INFO)
     const sqlImage = `
-      INSERT INTO DOC_IMAGES (MASTER_ID, SEQUENCE_NO, MIME_TYPE, IMAGE_DATA)
+      INSERT INTO PATIENT_DOC_INFO (PATIENT_ID, SEQUENCE_NO, PHOTO_MIME_TYPE, patient_doc)
       VALUES (:mid, :seq, :mime, :data)
     `;
 
@@ -131,7 +133,7 @@ app.post('/api/v1/documents/sync', async (req, res) => {
     // 4. Commit Transaction
     await connection.commit();
 
-    console.log(`Successfully synced doc ID: ${masterId}`);
+    console.log(`Successfully synced patient ID: ${masterId}`);
     res.json({
       status: 'success',
       oracleRecordId: masterId,
