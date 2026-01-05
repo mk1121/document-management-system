@@ -47,105 +47,123 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-// Reference Data Endpoint
-app.get('/api/v1/references', async (req, res) => {
+
+app.get('/api/v1/doctors', async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute('SELECT ID, NAME FROM DOC_REFS ORDER BY NAME');
-    const refs = result.rows.map(row => ({ id: row[0], name: row[1] }));
-    res.json(refs);
+    const result = await connection.execute(
+      `SELECT DR_ID, DR_NAME FROM DOCTOR_INFO ORDER BY DR_NAME ASC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    // Transform to simple array
+    const doctors = result.rows.map((row) => ({
+      id: row.DR_ID,
+      name: row.DR_NAME,
+    }));
+    res.json(doctors);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching doctors:', err);
+    res.status(500).json({ error: 'Failed to fetch doctors' });
   } finally {
     if (connection) {
       try {
         await connection.close();
-      } catch (e) { console.error(e); }
+      } catch (err) {
+        console.error('Error closing connection:', err);
+      }
     }
   }
 });
 
-// Sync Endpoint
+// -----------------------------------------------------------------------------
+// POST /api/v1/documents/sync
+// -----------------------------------------------------------------------------
 app.post('/api/v1/documents/sync', async (req, res) => {
+  const { transactionId, metadata, attachments } = req.body;
+
+  if (!transactionId || !metadata || !attachments) {
+    return res.status(400).json({ message: 'Missing required fields' });
+  }
+
   let connection;
   try {
-    const { transactionId, metadata, attachments } = req.body;
-
-    if (!transactionId || !metadata || !attachments) {
-      return res.status(400).json({ status: 'error', message: 'Invalid payload structure' });
-    }
-
     connection = await oracledb.getConnection(dbConfig);
 
-    // 1. Check idempotency (avoid duplicate inserts for same transactionId)
-    const checkSql = `SELECT ID FROM DOC_MASTERS WHERE FRONTEND_UUID = :uuid`;
-    const checkResult = await connection.execute(checkSql, [transactionId]);
+    // 1. Check Idempotency based on UUID
+    const checkSql = `SELECT PATIENT_ID FROM PATIENT_INFO WHERE FRONTEND_UUID = :uuid`;
+    const checkResult = await connection.execute(checkSql, { uuid: transactionId });
 
     if (checkResult.rows.length > 0) {
-      return res.status(200).json({
-        status: 'success',
-        oracleRecordId: checkResult.rows[0][0],
-        message: 'Record already exists (Idempotent)',
+      // Already synced
+      return res.json({
+        message: 'Document already synced',
+        documentId: checkResult.rows[0][0], // PATIENT_ID
       });
     }
 
-    // 2. Insert Master Record
-    // Note: capturedAt comes as ms timestamp. Converting to Oracle Date/Timestamp.
+    // 2. Insert Master Record (PATIENT_INFO)
+    // Removed PATIENT_NAME -> Now PATIENT_NAME
+    // Removed REF_ID
     const sqlMaster = `
-      INSERT INTO DOC_MASTERS (FRONTEND_UUID, FULL_NAME, DOB, PHONE, REF_ID, CREATED_AT)
-      VALUES (:uuid, :name, TO_DATE(:dob, 'YYYY-MM-DD'), :phone, :refId, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
-      RETURNING ID INTO :id
+      INSERT INTO PATIENT_INFO (FRONTEND_UUID, PATIENT_NAME, GENDER, DOB, AGE, CONTACT_NO, ADDRESS, DOCTOR_NAME, CREATED_AT)
+      VALUES (:uuid, :name, :gender, TO_DATE(:dob, 'YYYY-MM-DD'), :age, :contact, :address, :doctorName, TIMESTAMP '1970-01-01 00:00:00' + NUMTODSINTERVAL(:createdAt / 1000, 'SECOND'))
+      RETURNING PATIENT_ID INTO :id
     `;
 
     const resultMaster = await connection.execute(sqlMaster, {
       uuid: transactionId,
       name: metadata.fullName,
-      dob: metadata.dateOfBirth, // Expecting YYYY-MM-DD from frontend
-      phone: metadata.phoneNumber,
-      refId: metadata.refId || null, // New field
+      gender: metadata.gender || null,
+      dob: metadata.dateOfBirth,
+      age: metadata.age || null,
+      contact: metadata.phoneNumber,
+      address: metadata.address || null,
+      doctorName: metadata.doctorName || null,
       createdAt: metadata.capturedAt,
-      id: { type: oracledb.NUMBER, dir: oracledb.BIND_OUT },
+      id: { type: oracledb.STRING, dir: oracledb.BIND_OUT }, // Expect String ID (p-...)
     });
 
     const masterId = resultMaster.outBinds.id[0];
+    console.log(`Inserted Patient ID: ${masterId}`);
 
-    // 3. Insert Images (Details)
+    // 3. Insert Images (PATIENT_DOC_INFO)
     const sqlImage = `
-      INSERT INTO DOC_IMAGES (MASTER_ID, SEQUENCE_NO, MIME_TYPE, IMAGE_DATA)
+      INSERT INTO PATIENT_DOC_INFO (PATIENT_ID, SEQUENCE_NO, PHOTO_MIME_TYPE, patient_doc)
       VALUES (:mid, :seq, :mime, :data)
     `;
 
-    for (const img of attachments) {
-      const buffer = parseBase64Data(img.data);
+    // Process attachments sequentially
+    for (const att of attachments) {
+      // att.data is base64 string. We need to convert it to Buffer for BLOB insertion.
+      // Remove header if present (e.g., "data:image/jpeg;base64,")
+      const base64Data = att.data.replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
 
       await connection.execute(sqlImage, {
         mid: masterId,
-        seq: img.sequence,
-        mime: img.mimeType,
+        seq: att.sequence,
+        mime: att.mimeType,
         data: buffer,
       });
     }
 
-    // 4. Commit Transaction
     await connection.commit();
 
-    console.log(`Successfully synced doc ID: ${masterId}`);
     res.json({
-      status: 'success',
-      oracleRecordId: masterId,
-      message: 'Data committed successfully',
+      message: 'Sync successful',
+      documentId: masterId,
     });
   } catch (err) {
     console.error('Sync Error:', err);
-    res.status(500).json({ status: 'error', code: 'ORA-SYNC-FAIL', message: err.message });
+    res.status(500).json({ message: 'Internal Server Error' });
   } finally {
     if (connection) {
       try {
         await connection.close();
-      } catch (e) {
-        console.error(e);
+      } catch (err) {
+        console.error('Error closing connection:', err);
       }
     }
   }

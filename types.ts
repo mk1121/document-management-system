@@ -1,15 +1,24 @@
+// -----------------------------------------------------------------------------
+// Type Definitions
+// -----------------------------------------------------------------------------
+
+export type ViewMode = 'form' | 'list';
+
 export interface DocMaster {
   id: string; // UUID
   name: string;
-  dob: string;
+  gender: string; // 'M' | 'F' | 'O'
+  dob: string; // YYYY-MM-DD
+  age: string; // Calculated age (e.g. "25y" or "6M")
   phone: string;
-  refId?: number; // Optional reference ID
+  address: string;
+  doctorName?: string; // [NEW] Selected Doctor Name
   createdAt: number;
   syncStatus: 'pending' | 'synced' | 'failed';
 }
 
-export interface ReferenceItem {
-  id: number;
+export interface Doctor {
+  id: string; // Changed to string
   name: string;
 }
 
