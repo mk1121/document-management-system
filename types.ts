@@ -3,8 +3,14 @@ export interface DocMaster {
   name: string;
   dob: string;
   phone: string;
+  refId?: number; // Optional reference ID
   createdAt: number;
   syncStatus: 'pending' | 'synced' | 'failed';
+}
+
+export interface ReferenceItem {
+  id: number;
+  name: string;
 }
 
 export interface DocDetail {
