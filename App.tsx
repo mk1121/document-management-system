@@ -54,7 +54,7 @@ export default function App() {
     name: '',
     gender: 'Male', // Default to Male 
     dob: '',
-    age: '', // Auto-calculated
+    age: 0, // Auto-calculated (Number)
     phone: '',
     address: '',
     doctorName: '', // [NEW] Stores selected doctor name
@@ -152,8 +152,8 @@ export default function App() {
     }
   };
 
-  const calculateAge = (dobString: string) => {
-    if (!dobString) return '';
+  const calculateAge = (dobString: string): number => {
+    if (!dobString) return 0;
     const birthDate = new Date(dobString);
     const today = new Date();
 
@@ -164,14 +164,9 @@ export default function App() {
       years--;
       months = months + 12;
     }
-    // Re-calculate precise month diff if years became 0
-    if (years === 0) {
-      // If less than a year, calculate total months difference
-      const m = (today.getFullYear() - birthDate.getFullYear()) * 12 + (today.getMonth() - birthDate.getMonth());
-      return `${m}M`;
-    }
 
-    return `${years}y`;
+
+    return Math.max(0, years);
   };
 
   // Update logic to trigger age calculation
@@ -237,7 +232,7 @@ export default function App() {
         name: doc.name,
         gender: doc.gender || 'Male',
         dob: doc.dob,
-        age: doc.age || '',
+        age: doc.age || 0,
         phone: doc.phone,
         address: doc.address || '',
         doctorName: doc.doctorName || '', // [NEW]
@@ -304,7 +299,7 @@ export default function App() {
       }
 
       // Success
-      setFormData({ name: '', gender: 'Male', dob: '', age: '', phone: '', address: '', doctorName: '' });
+      setFormData({ name: '', gender: 'Male', dob: '', age: 0, phone: '', address: '', doctorName: '' });
       setImages([]);
       refreshCounts();
 
@@ -341,7 +336,7 @@ export default function App() {
             fullName: doc.name,
             gender: doc.gender,
             dateOfBirth: doc.dob,
-            age: doc.age,
+            age: Number(doc.age),
             phoneNumber: doc.phone,
             address: doc.address,
             doctorName: doc.doctorName, // [NEW]

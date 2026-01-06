@@ -9,7 +9,7 @@ export interface DocMaster {
   name: string;
   gender: string; // 'M' | 'F' | 'O'
   dob: string; // YYYY-MM-DD
-  age: string; // Calculated age (e.g. "25y" or "6M")
+  age: number; // Calculated age (Years)
   phone: string;
   address: string;
   doctorName?: string; // [NEW] Selected Doctor Name
@@ -18,7 +18,7 @@ export interface DocMaster {
 }
 
 export interface Doctor {
-  id: string; // Changed to string
+  id: number; // Changed to number
   name: string;
 }
 
