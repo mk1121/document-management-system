@@ -2,7 +2,7 @@
 // Type Definitions
 // -----------------------------------------------------------------------------
 
-export type ViewMode = 'form' | 'list';
+// export type ViewMode = 'form' | 'list'; // Removed duplicate
 
 export interface DocMaster {
   id: string; // UUID
@@ -42,4 +42,21 @@ export interface SyncResult {
   errors: string[];
 }
 
-export type ViewMode = 'form' | 'list';
+export type ViewMode = 'list' | 'form' | 'search';
+
+export interface OnlinePatient {
+  id: number;
+  name: string;
+  phone: string;
+  age: number;
+  gender: string;
+  doctorName: string;
+  dob: string;
+}
+
+export interface OnlinePatientImage {
+  fileId: number;
+  sequence: number;
+  mimeType: string;
+  data: string; // Base64 Data URL
+}

@@ -9,6 +9,7 @@ interface DocumentCardProps {
 }
 
 export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
+
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   useEffect(() => {
