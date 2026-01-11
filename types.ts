@@ -69,4 +69,5 @@ export interface OnlinePatientImage {
   sequence: number;
   mimeType: string;
   data: string; // Base64 Data URL
+  nextApp?: string; // [NEW] YYYY-MM-DD
 }

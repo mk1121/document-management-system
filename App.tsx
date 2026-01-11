@@ -152,7 +152,12 @@ export default function App() {
       const res = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`);
       if (!res.ok) throw new Error('Failed to load images');
       const data = await res.json();
-      setOnlineImages(data);
+      // Map API response to internal type if needed, but data check
+      const mapped = data.map((img: any) => ({
+        ...img,
+        nextApp: img.nextApp || '' // Ensure nextApp is set
+      }));
+      setOnlineImages(mapped);
     } catch (err) {
       console.error(err);
       showToast('Failed to load patient images', 'error');
@@ -917,7 +922,7 @@ export default function App() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by ID, Name, or Phone..."
+                    placeholder="Search by ID, Name, Phone, Address, Branch..."
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -956,53 +961,82 @@ export default function App() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Patient Documents</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
                   {onlineImages.map((img, index) => (
-                    <div key={img.fileId} className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
-                      <img
-                        src={img.data}
-                        alt="Document"
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setPreviewImage(img.data)}
-                      />
-                      <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                        {index + 1}
-                      </div>
+                    <div key={img.fileId} className="flex flex-col gap-1.5">
+                      <div className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
+                        <img
+                          src={img.data}
+                          alt="Document"
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewImage(img.data)}
+                        />
+                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                          {index + 1}
+                        </div>
 
-                      {/* Controls Overlay */}
-                      <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                          {/* Placeholder for Move Left */}
-                        </button>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!window.confirm('Delete this image permanently?')) return;
-                            try {
-                              await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
-                              showToast('Image deleted', 'success');
-                              await loadOnlineImages(selectedOnlinePatient.id);
-                            } catch (err) {
+                        {/* Controls Overlay */}
+                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                            {/* Placeholder for Move Left */}
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!window.confirm('Delete this image permanently?')) return;
+                              try {
+                                await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
+                                showToast('Image deleted', 'success');
+                                await loadOnlineImages(selectedOnlinePatient.id);
+                              } catch (err) {
 
-                              showToast('Failed to delete', 'error');
-                            }
-                          }}
-                          className='text-red-400 hover:text-red-200 p-1'
-                          title="Delete Image"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                          {/* Placeholder for Move Right */}
-                        </button>
-                      </div>
+                                showToast('Failed to delete', 'error');
+                              }
+                            }}
+                            className='text-red-400 hover:text-red-200 p-1'
+                            title="Delete Image"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                            {/* Placeholder for Move Right */}
+                          </button>
+                        </div>
 
-                      {/* Hint Overlay */}
-                      <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                        <div className='bg-black/50 rounded-full p-2'>
-                          <Eye size={24} className='text-white' />
+                        {/* Hint Overlay */}
+                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          <div className='bg-black/50 rounded-full p-2'>
+                            <Eye size={24} className='text-white' />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                      {/* Per-Image Date Picker (Updateable) */}
+                      <div className="flex flex-col mt-1.5">
+                        <label className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                        <input
+                          type="date"
+                          defaultValue={img.nextApp || ''}
+                          onBlur={async (e) => {
+                            const newDate = e.target.value;
+                            if (newDate === img.nextApp) return; // No change
+                            try {
+                              showToast('Updating date...', 'success');
+                              const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ nextApp: newDate || null })
+                              });
+                              if (!res.ok) throw new Error('Update failed');
+                              showToast('Date updated', 'success');
+                              // allow UI to reflect naturally or reload?
+                              // Ideally update local state to avoid jump
+                            } catch (err) {
+                              console.error(err);
+                              showToast('Failed to update date', 'error');
+                            }
+                          }}
+                          className="w-full text-xs px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                        />
+                      </div>
+                    </div>))}
 
                   {/* Add Buttons Container */}
                   <div className='flex flex-col gap-2'>
@@ -1060,8 +1094,9 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            )
+            }
+          </div >
         ) : (
           /* LIST VIEW */
           <div className='space-y-6'>
@@ -1103,17 +1138,21 @@ export default function App() {
             )}
           </div>
         )}
-      </main>
+      </main >
 
       {/* Full Screen Image Preview Modal with Zoom/Pan */}
-      {previewImage && (
-        <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
-      )}
+      {
+        previewImage && (
+          <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
+        )
+      }
 
       {/* Camera Modal */}
-      {showCamera && (
-        <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
-      )}
-    </div>
+      {
+        showCamera && (
+          <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+        )
+      }
+    </div >
   );
 }
