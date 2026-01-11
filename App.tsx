@@ -52,16 +52,26 @@ export default function App() {
   // Form State
   const [formData, setFormData] = useState({
     name: '',
-    gender: 'Male', // Default to Male 
+    gender: 'Male',
     dob: '',
-    age: 0, // Auto-calculated (Number)
+    age: 0,
     phone: '',
     address: '',
-    doctorName: '', // [NEW] Stores selected doctor name
+    doctorName: '',
+    // New Fields
+    branchName: 'FD1',          // Default FD1
+    patientType: 'General',     // Default General
+    appDate: new Date().toISOString().split('T')[0], // Default Today
+    po: '',
+    ps: '',
+    dist: '',
+    emgContactPerson: '',
+    emgContactNo: '',
+    refBy: '',
   });
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [images, setImages] = useState<{ id: string; url: string; file?: File }[]>([]);
+  const [images, setImages] = useState<{ id: string; url: string; file?: File; nextApp?: string }[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -142,7 +152,12 @@ export default function App() {
       const res = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`);
       if (!res.ok) throw new Error('Failed to load images');
       const data = await res.json();
-      setOnlineImages(data);
+      // Map API response to internal type if needed, but data check
+      const mapped = data.map((img: any) => ({
+        ...img,
+        nextApp: img.nextApp || '' // Ensure nextApp is set
+      }));
+      setOnlineImages(mapped);
     } catch (err) {
       console.error(err);
       showToast('Failed to load patient images', 'error');
@@ -365,7 +380,17 @@ export default function App() {
         age: formData.age,
         phone: formData.phone,
         address: formData.address,
-        doctorName: formData.doctorName, // [NEW]
+        doctorName: formData.doctorName,
+        // New Fields
+        branchName: formData.branchName || 'FD1',
+        patientType: formData.patientType || 'General',
+        appDate: formData.appDate || new Date().toISOString().split('T')[0],
+        po: formData.po,
+        ps: formData.ps,
+        dist: formData.dist,
+        emgContactPerson: formData.emgContactPerson,
+        emgContactNo: formData.emgContactNo,
+        refBy: formData.refBy,
         createdAt: Date.now(),
         syncStatus: 'pending',
       };
@@ -379,6 +404,7 @@ export default function App() {
           sequence: idx + 1,
           imageData: img.url,
           mimeType: mimeType,
+          nextApp: img.nextApp, // [NEW] Map from image state
         };
       });
 
@@ -432,13 +458,24 @@ export default function App() {
             age: Number(doc.age),
             phoneNumber: doc.phone,
             address: doc.address,
-            doctorName: doc.doctorName, // [NEW]
+            doctorName: doc.doctorName,
             capturedAt: doc.createdAt,
+            // New Fields
+            branchName: doc.branchName,
+            patientType: doc.patientType,
+            appDate: doc.appDate,
+            po: doc.po,
+            ps: doc.ps,
+            dist: doc.dist,
+            emgContactPerson: doc.emgContactPerson,
+            emgContactNo: doc.emgContactNo,
+            refBy: doc.refBy,
           },
           attachments: details.map((d) => ({
             sequence: d.sequence,
             mimeType: d.mimeType,
             data: d.imageData,
+            nextApp: d.nextApp, // [NEW] Send per-attachment
           })),
         };
 
@@ -633,6 +670,55 @@ export default function App() {
                   />
                 </div>
 
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Branch'
+                    type='select'
+                    value={formData.branchName || 'FD1'}
+                    onChange={(e: any) => setFormData({ ...formData, branchName: e.target.value })}
+                    required
+                    options={[
+                      { label: 'Panchlaish', value: 'FD1' },
+                      { label: 'Khulshi', value: 'FD2' }
+                    ]}
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Patient Type'
+                    type='select'
+                    value={formData.patientType || 'General'}
+                    onChange={(e: any) => setFormData({ ...formData, patientType: e.target.value })}
+                    required
+                    options={[
+                      { label: 'General', value: 'General' },
+                      { label: 'Orth', value: 'Orth' },
+                      { label: 'Surgery', value: 'Surgery' }
+                    ]}
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='App Date'
+                    type='date'
+                    value={formData.appDate || ''}
+                    onChange={(e: any) => setFormData({ ...formData, appDate: e.target.value })}
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Age (Years)'
+                    type='number'
+                    value={formData.age.toString()}
+                    onChange={(e: any) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
+                    disabled={true}
+                    placeholder="Auto-calculated"
+                  />
+                </div>
+
                 <div className='sm:col-span-2'>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Address
@@ -640,10 +726,58 @@ export default function App() {
                   <textarea
                     value={formData.address}
                     onChange={(e: any) => setFormData({ ...formData, address: e.target.value })}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm mb-4"
+                  />
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label='PO'
+                      value={formData.po}
+                      onChange={(e: any) => setFormData({ ...formData, po: e.target.value })}
+                      placeholder="Post Office"
+                    />
+                    <FormField
+                      label='PS'
+                      value={formData.ps}
+                      onChange={(e: any) => setFormData({ ...formData, ps: e.target.value })}
+                      placeholder="Police Station"
+                    />
+                    <FormField
+                      label='District'
+                      value={formData.dist}
+                      onChange={(e: any) => setFormData({ ...formData, dist: e.target.value })}
+                      placeholder="District"
+                    />
+                  </div>
+                </div>
+
+                <div className='sm:col-span-2'>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      label='Emergency Contact Person'
+                      value={formData.emgContactPerson}
+                      onChange={(e: any) => setFormData({ ...formData, emgContactPerson: e.target.value })}
+                      placeholder="Name"
+                    />
+                    <FormField
+                      label='Emergency Contact No'
+                      value={formData.emgContactNo}
+                      onChange={(e: any) => setFormData({ ...formData, emgContactNo: e.target.value })}
+                      placeholder="Phone Number"
+                    />
+                  </div>
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Referred By'
+                    value={formData.refBy}
+                    onChange={(e: any) => setFormData({ ...formData, refBy: e.target.value })}
+                    placeholder="Referral Name (Optional)"
                   />
                 </div>
+
+
                 <div className='sm:col-span-2'>
                   <FormField
                     label='Doctor REF'
@@ -667,49 +801,64 @@ export default function App() {
 
                   <div className='flex flex-wrap gap-4 mb-4'>
                     {images.map((img, index) => (
-                      <div
-                        key={img.id}
-                        className='relative group w-24 h-32 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
-                      >
-                        <img
-                          src={img.url}
-                          alt={`Doc ${index + 1}`}
-                          className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
-                          onClick={() => setPreviewImage(img.url)}
-                        />
-                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                          {index + 1}
-                        </div>
-
-                        {/* Controls Overlay */}
-                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-1 py-1 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                          <button
-                            onClick={() => moveImage(index, 'up')}
-                            disabled={index === 0}
-                            className='text-white hover:text-blue-300 disabled:opacity-30'
-                          >
-                            <MoveLeft size={14} />
-                          </button>
-                          <button
-                            onClick={() => removeImage(img.id)}
-                            className='text-red-400 hover:text-red-200'
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                          <button
-                            onClick={() => moveImage(index, 'down')}
-                            disabled={index === images.length - 1}
-                            className='text-white hover:text-blue-300 disabled:opacity-30'
-                          >
-                            <MoveRight size={14} />
-                          </button>
-                        </div>
-
-                        {/* Hint Overlay */}
-                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                          <div className='bg-black/50 rounded-full p-1'>
-                            <Eye size={20} className='text-white' />
+                      <div key={img.id} className="flex flex-col gap-1.5">
+                        <div
+                          className='relative group w-48 h-60 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
+                        >
+                          <img
+                            src={img.url}
+                            alt={`Doc ${index + 1}`}
+                            className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
+                            onClick={() => setPreviewImage(img.url)}
+                          />
+                          <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                            {index + 1}
                           </div>
+
+                          {/* Controls Overlay */}
+                          <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                            <button
+                              onClick={() => moveImage(index, 'up')}
+                              disabled={index === 0}
+                              className='text-white hover:text-blue-300 disabled:opacity-30'
+                            >
+                              <MoveLeft size={16} />
+                            </button>
+                            <button
+                              onClick={() => removeImage(img.id)}
+                              className='text-red-400 hover:text-red-200'
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                            <button
+                              onClick={() => moveImage(index, 'down')}
+                              disabled={index === images.length - 1}
+                              className='text-white hover:text-blue-300 disabled:opacity-30'
+                            >
+                              <MoveRight size={16} />
+                            </button>
+                          </div>
+
+                          {/* Hint Overlay */}
+                          <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                            <div className='bg-black/50 rounded-full p-2'>
+                              <Eye size={24} className='text-white' />
+                            </div>
+                          </div>
+                        </div>
+                        {/* Per-Image Date Picker */}
+                        <div className="flex flex-col">
+                          <label className="text-[10px] text-gray-500 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                          <input
+                            type="date"
+                            value={img.nextApp || ''}
+                            onChange={(e) => {
+                              const newImages = [...images];
+                              newImages[index].nextApp = e.target.value;
+                              setImages(newImages);
+                            }}
+                            className="w-48 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                          />
                         </div>
                       </div>
                     ))}
@@ -719,19 +868,19 @@ export default function App() {
                       {/* Camera Button */}
                       <button
                         onClick={() => setShowCamera(true)}
-                        className='w-24 h-14 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
+                        className='w-32 h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
                       >
-                        <Camera className='text-oracle-600 mb-0.5' size={20} />
-                        <span className='text-[10px] text-gray-600 dark:text-gray-300 font-medium'>
+                        <Camera className='text-oracle-600 mb-0.5' size={24} />
+                        <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
                           Camera
                         </span>
                       </button>
 
                       {/* File Upload Button */}
-                      <label className='w-24 h-14 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
+                      <label className='w-32 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
                         <div className='flex flex-col items-center text-center p-1'>
-                          <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={20} />
-                          <span className='text-[10px] text-gray-500 dark:text-gray-400'>File</span>
+                          <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={24} />
+                          <span className='text-xs text-gray-500 dark:text-gray-400'>File</span>
                         </div>
                         <input
                           type='file'
@@ -773,7 +922,7 @@ export default function App() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by ID, Name, or Phone..."
+                    placeholder="Search by ID, Name, Phone, Address, Branch..."
                     className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   />
                 </div>
@@ -812,53 +961,82 @@ export default function App() {
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Patient Documents</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
                   {onlineImages.map((img, index) => (
-                    <div key={img.fileId} className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
-                      <img
-                        src={img.data}
-                        alt="Document"
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => setPreviewImage(img.data)}
-                      />
-                      <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                        {index + 1}
-                      </div>
+                    <div key={img.fileId} className="flex flex-col gap-1.5">
+                      <div className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
+                        <img
+                          src={img.data}
+                          alt="Document"
+                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                          onClick={() => setPreviewImage(img.data)}
+                        />
+                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                          {index + 1}
+                        </div>
 
-                      {/* Controls Overlay */}
-                      <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                          {/* Placeholder for Move Left */}
-                        </button>
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!window.confirm('Delete this image permanently?')) return;
-                            try {
-                              await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
-                              showToast('Image deleted', 'success');
-                              await loadOnlineImages(selectedOnlinePatient.id);
-                            } catch (err) {
+                        {/* Controls Overlay */}
+                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                            {/* Placeholder for Move Left */}
+                          </button>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              if (!window.confirm('Delete this image permanently?')) return;
+                              try {
+                                await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
+                                showToast('Image deleted', 'success');
+                                await loadOnlineImages(selectedOnlinePatient.id);
+                              } catch (err) {
 
-                              showToast('Failed to delete', 'error');
-                            }
-                          }}
-                          className='text-red-400 hover:text-red-200 p-1'
-                          title="Delete Image"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                          {/* Placeholder for Move Right */}
-                        </button>
-                      </div>
+                                showToast('Failed to delete', 'error');
+                              }
+                            }}
+                            className='text-red-400 hover:text-red-200 p-1'
+                            title="Delete Image"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                            {/* Placeholder for Move Right */}
+                          </button>
+                        </div>
 
-                      {/* Hint Overlay */}
-                      <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                        <div className='bg-black/50 rounded-full p-2'>
-                          <Eye size={24} className='text-white' />
+                        {/* Hint Overlay */}
+                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                          <div className='bg-black/50 rounded-full p-2'>
+                            <Eye size={24} className='text-white' />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                      {/* Per-Image Date Picker (Updateable) */}
+                      <div className="flex flex-col mt-1.5">
+                        <label className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                        <input
+                          type="date"
+                          defaultValue={img.nextApp || ''}
+                          onBlur={async (e) => {
+                            const newDate = e.target.value;
+                            if (newDate === img.nextApp) return; // No change
+                            try {
+                              showToast('Updating date...', 'success');
+                              const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ nextApp: newDate || null })
+                              });
+                              if (!res.ok) throw new Error('Update failed');
+                              showToast('Date updated', 'success');
+                              // allow UI to reflect naturally or reload?
+                              // Ideally update local state to avoid jump
+                            } catch (err) {
+                              console.error(err);
+                              showToast('Failed to update date', 'error');
+                            }
+                          }}
+                          className="w-full text-xs px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                        />
+                      </div>
+                    </div>))}
 
                   {/* Add Buttons Container */}
                   <div className='flex flex-col gap-2'>
@@ -916,8 +1094,9 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )}
-          </div>
+            )
+            }
+          </div >
         ) : (
           /* LIST VIEW */
           <div className='space-y-6'>
@@ -959,17 +1138,21 @@ export default function App() {
             )}
           </div>
         )}
-      </main>
+      </main >
 
       {/* Full Screen Image Preview Modal with Zoom/Pan */}
-      {previewImage && (
-        <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
-      )}
+      {
+        previewImage && (
+          <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
+        )
+      }
 
       {/* Camera Modal */}
-      {showCamera && (
-        <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
-      )}
-    </div>
+      {
+        showCamera && (
+          <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+        )
+      }
+    </div >
   );
 }

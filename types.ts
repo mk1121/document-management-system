@@ -5,14 +5,23 @@
 // export type ViewMode = 'form' | 'list'; // Removed duplicate
 
 export interface DocMaster {
-  id: string; // UUID
+  id: string; // UUID (or Trigger generated ID if synced)
   name: string;
   gender: string; // 'M' | 'F' | 'O'
   dob: string; // YYYY-MM-DD
   age: number; // Calculated age (Years)
   phone: string;
   address: string;
-  doctorName?: string; // [NEW] Selected Doctor Name
+  doctorName?: string;
+  branchName?: string;    // [NEW] FD1 | FD2
+  patientType?: string;   // [NEW] General | Orth | Surgery
+  appDate?: string;       // [NEW] YYYY-MM-DD
+  po?: string;            // [NEW] Post Office
+  ps?: string;            // [NEW] Police Station
+  dist?: string;          // [NEW] District
+  emgContactPerson?: string; // [NEW]
+  emgContactNo?: string;     // [NEW]
+  refBy?: string;            // [NEW]
   createdAt: number;
   syncStatus: 'pending' | 'synced' | 'failed';
 }
@@ -28,6 +37,7 @@ export interface DocDetail {
   sequence: number; // For ordering (1st, 2nd, etc.)
   imageData: string; // Base64 compressed string
   mimeType: string;
+  nextApp?: string; // [NEW] Per-document appointment date
 }
 
 // Combined type for UI consumption
@@ -59,4 +69,5 @@ export interface OnlinePatientImage {
   sequence: number;
   mimeType: string;
   data: string; // Base64 Data URL
+  nextApp?: string; // [NEW] YYYY-MM-DD
 }
