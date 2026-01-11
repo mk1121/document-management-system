@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon } from 'lucide-react';
-import { DocMaster, DocDetail, ViewMode, Doctor } from './types';
+import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X } from 'lucide-react';
+import { DocMaster, DocDetail, ViewMode, Doctor, OnlinePatient, OnlinePatientImage } from './types';
 import * as DB from './services/db';
 import { compressImage } from './services/imageService';
 import { useToast } from './components/Toast';
@@ -77,72 +77,157 @@ export default function App() {
   const [showCamera, setShowCamera] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Search State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<OnlinePatient[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedOnlinePatient, setSelectedOnlinePatient] = useState<OnlinePatient | null>(null);
+  const [onlineImages, setOnlineImages] = useState<OnlinePatientImage[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   // Helper to fetch doctors with cache-first strategy
   const fetchDoctors = (force = false) => {
-    const cachedDoctors = localStorage.getItem('cached_doctors');
-    if (!force && cachedDoctors) {
-      setDoctors(JSON.parse(cachedDoctors));
-      return;
+    // If not forced, try to load from cache
+    if (!force) {
+      const cached = localStorage.getItem('cached_doctors');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setDoctors(parsed);
+            return;
+          }
+        } catch (e) {
+          // Cache parse error, proceed to fetch from API
+        }
+      }
     }
 
+    // Fallback or Forced: Fetch from API
+
     fetch(`${API_BASE_URL}/api/v1/doctors`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
         if (Array.isArray(data)) {
+
           setDoctors(data);
           localStorage.setItem('cached_doctors', JSON.stringify(data));
         } else {
-          console.error('Doctors API return invalid data', data);
+          console.error('Invalid data format', data);
         }
       })
       .catch(err => {
-        console.error("Failed to fetch doctors", err);
-        showToast('Failed to load doctors: ' + err.message, 'error');
+        console.error("Doctor fetch error:", err);
+        // Optional: showToast('Failed to load doctors', 'error');
       });
   };
 
-  useEffect(() => {
-    // Check if we need to clear DB (triggered from a reload)
-    const performInitialChecks = async () => {
-      if (localStorage.getItem('clear_db_pending')) {
-        try {
-          // Delete IndexedDB
-          await DB.clearDatabase();
-          // Clear LocalStorage
-          localStorage.clear();
-          showToast('Application Reset: All data cleared successfully.', 'success');
-        } catch (e) {
-          console.error(e);
-          showToast('Failed to fully clear database. Please close other tabs.', 'error');
-          localStorage.removeItem('clear_db_pending');
-        }
-      }
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) return;
 
-      // Check system preference
-      if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-        setDarkMode(true);
-      }
+    setIsSearching(true);
+    setSearchResults([]);
+    setSelectedOnlinePatient(null);
 
-      await refreshCounts();
-      await loadDocs(1);
-
-
-
-      // [NEW] Fetch Doctors using helper
-      fetchDoctors();
-    };
-
-    performInitialChecks();
-  }, []);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (darkMode) {
-      root.classList.add('dark');
-    } else {
-      root.classList.remove('dark');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/patients/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error('Search failed');
+      const data = await res.json();
+      setSearchResults(data);
+    } catch (err) {
+      console.error(err);
+      showToast('Search failed. Ensure backend is running.', 'error');
+    } finally {
+      setIsSearching(false);
     }
-  }, [darkMode]);
+  };
+
+  const loadOnlineImages = async (patientId: number) => {
+    try {
+      // Add timestamp to prevent caching
+      const res = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`);
+      if (!res.ok) throw new Error('Failed to load images');
+      const data = await res.json();
+      setOnlineImages(data);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to load patient images', 'error');
+    }
+  };
+
+  const handleSelectOnlinePatient = (patient: OnlinePatient) => {
+    setSelectedOnlinePatient(patient);
+    setOnlineImages([]);
+    loadOnlineImages(patient.id);
+  };
+
+  // Reusable upload function
+  const uploadOnlineImage = async (file: File) => {
+    if (!selectedOnlinePatient) return;
+    setUploadingImage(true);
+    try {
+      const compressedDataUrl = await compressImage(file);
+      const mimeType = compressedDataUrl.match(/:(.*?);/)?.[1] || 'image/png';
+
+      const payload = {
+        images: [
+          {
+            data: compressedDataUrl,
+            mimeType: mimeType
+          }
+        ]
+      };
+
+      const res = await fetch(`${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) throw new Error('Upload failed');
+      showToast('Image uploaded successfully', 'success');
+      await loadOnlineImages(selectedOnlinePatient.id);
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to upload image', 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleOnlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!selectedOnlinePatient || !e.target.files?.length) return;
+    const file = e.target.files[0];
+    await uploadOnlineImage(file);
+    e.target.value = '';
+  };
+
+  const handleCameraCapture = async (file: File) => {
+    if (viewMode === 'search' && selectedOnlinePatient) {
+      await uploadOnlineImage(file);
+    } else {
+      await handleImageFile(file);
+    }
+    setShowCamera(false);
+  };
+
+  const removeImage = (id: string) => {
+    setImages(images.filter((img) => img.id !== id));
+  };
+
+  const moveImage = (index: number, direction: 'up' | 'down') => {
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === images.length - 1) return;
+
+    const newImages = [...images];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
+    setImages(newImages);
+  };
 
   const refreshCounts = async () => {
     const pending = await DB.getPendingDocuments();
@@ -158,9 +243,39 @@ export default function App() {
       setTotalDocs(total);
       setPage(pageNum);
     } catch (e) {
-      console.error('Failed to load documents', e);
     }
   };
+
+  useEffect(() => {
+    const init = async () => {
+
+      // Theme
+      const savedTheme = localStorage.getItem('theme');
+      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+
+        setDarkMode(true);
+      } else {
+
+      }
+
+      await refreshCounts();
+      await loadDocs(1);
+      fetchDoctors(true);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+
+    if (darkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   const calculateAge = (dobString: string): number => {
     if (!dobString) return 0;
@@ -174,12 +289,9 @@ export default function App() {
       years--;
       months = months + 12;
     }
-
-
     return Math.max(0, years);
   };
 
-  // Update logic to trigger age calculation
   const handleDobChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newDob = e.target.value;
     const newAge = calculateAge(newDob);
@@ -213,25 +325,6 @@ export default function App() {
       }
       e.target.value = '';
     }
-  };
-
-  const handleCameraCapture = async (file: File) => {
-    await handleImageFile(file);
-    setShowCamera(false);
-  };
-
-  const removeImage = (id: string) => {
-    setImages(images.filter((img) => img.id !== id));
-  };
-
-  const moveImage = (index: number, direction: 'up' | 'down') => {
-    if (direction === 'up' && index === 0) return;
-    if (direction === 'down' && index === images.length - 1) return;
-
-    const newImages = [...images];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    [newImages[index], newImages[targetIndex]] = [newImages[targetIndex], newImages[index]];
-    setImages(newImages);
   };
 
   const handleEdit = async (doc: DocMaster) => {
@@ -399,12 +492,21 @@ export default function App() {
         await DB.markAsSynced(doc.id);
         successCount++;
 
-        // Invalidate Cache after successful sync (to fetch fresh data if needed, as per requirement "db theke new query calai data niye asbe")
-        localStorage.removeItem('cached_doctors'); // [NEW] Invalidate doctors cache too
+        // Invalidate Cache after successful sync
+        localStorage.removeItem('cached_doctors');
 
-        // Force Refetch Doctors immediately
+
+        try {
+          await Promise.all([
+            refreshCounts(),
+            loadDocs(1)
+          ]);
+        } catch (e) {
+          console.error("Failed to refresh counts or load docs after sync:", e);
+        }
+
+        // Force fetch on reload to ensure fresh data
         fetchDoctors(true);
-
         // Use setTimeout to allow the process to finish before refetching, or just let next reload handle it.
 
 
@@ -804,6 +906,161 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
+        ) : viewMode === 'search' ? (
+          <div className='max-w-4xl mx-auto'>
+            {/* Search Bar */}
+            <div className='bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6'>
+              <form onSubmit={handleSearch} className="flex gap-4">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by ID, Name, or Phone..."
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSearching}
+                  className="px-6 py-2 bg-oracle-600 text-white rounded-md hover:bg-oracle-700 disabled:opacity-50"
+                >
+                  {isSearching ? 'Search...' : 'Search'}
+                </button>
+              </form>
+            </div>
+
+            {/* Results or Details */}
+            {selectedOnlinePatient ? (
+              <div className='bg-white dark:bg-gray-800 shadow rounded-lg p-6 animate-fade-in'>
+                <div className="flex justify-between items-start mb-6 border-b dark:border-gray-700 pb-4">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedOnlinePatient.name}</h2>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      ID: <span className="font-mono">{selectedOnlinePatient.id}</span> | Phone: {selectedOnlinePatient.phone}
+                    </div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                      Age: {selectedOnlinePatient.age} | Gender: {selectedOnlinePatient.gender} | Doctor: {selectedOnlinePatient.doctorName}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setSelectedOnlinePatient(null)}
+                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+
+                {/* Images */}
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Patient Documents</h3>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
+                  {onlineImages.map((img, index) => (
+                    <div key={img.fileId} className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
+                      <img
+                        src={img.data}
+                        alt="Document"
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => setPreviewImage(img.data)}
+                      />
+                      <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                        {index + 1}
+                      </div>
+
+                      {/* Controls Overlay */}
+                      <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                          {/* Placeholder for Move Left */}
+                        </button>
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!window.confirm('Delete this image permanently?')) return;
+                            try {
+                              await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
+                              showToast('Image deleted', 'success');
+                              await loadOnlineImages(selectedOnlinePatient.id);
+                            } catch (err) {
+
+                              showToast('Failed to delete', 'error');
+                            }
+                          }}
+                          className='text-red-400 hover:text-red-200 p-1'
+                          title="Delete Image"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                        <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
+                          {/* Placeholder for Move Right */}
+                        </button>
+                      </div>
+
+                      {/* Hint Overlay */}
+                      <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                        <div className='bg-black/50 rounded-full p-2'>
+                          <Eye size={24} className='text-white' />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add Buttons Container */}
+                  <div className='flex flex-col gap-2'>
+                    {/* Camera Button */}
+                    <button
+                      onClick={() => setShowCamera(true)}
+                      className='w-full h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
+                    >
+                      <Camera className='text-oracle-600 mb-1' size={24} />
+                      <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
+                        Camera
+                      </span>
+                    </button>
+
+                    {/* File Upload Button */}
+                    <label className={`w-full h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <ImageIcon className="text-gray-400 mb-1" size={24} />
+                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleOnlineImageUpload}
+                        disabled={uploadingImage}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {searchResults.map(patient => (
+                  <div
+                    key={patient.id}
+                    onClick={() => handleSelectOnlinePatient(patient)}
+                    className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow hover:shadow-md cursor-pointer border border-transparent hover:border-oracle-300 transition-all flex justify-between items-center"
+                  >
+                    <div>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{patient.name}</h3>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Phone: {patient.phone} | ID: {patient.id}</p>
+                    </div>
+                    <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                      {patient.doctorName}
+                    </div>
+                  </div>
+                ))}
+                {searchResults.length === 0 && searchQuery && !isSearching && (
+                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                    No patients found matching "{searchQuery}"
+                  </div>
+                )}
+                {searchResults.length === 0 && !searchQuery && (
+                  <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                    Enter a name, phone number or ID to search.
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         ) : (
           /* LIST VIEW */

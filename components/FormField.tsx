@@ -20,6 +20,7 @@ export const FormField: React.FC<FormFieldProps> = ({
   required,
   ...rest
 }) => {
+
   const dateInputRef = useRef<HTMLInputElement>(null);
   const textInputRef = useRef<HTMLInputElement>(null);
   const [displayValue, setDisplayValue] = useState(value);
