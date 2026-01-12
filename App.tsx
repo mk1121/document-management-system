@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X, Plus, RefreshCw } from 'lucide-react';
+import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
 import { DocMaster, DocDetail, ViewMode, Doctor, OnlinePatient, OnlinePatientImage } from './types';
 import * as DB from './services/db';
 import { compressImage } from './services/imageService';
@@ -32,6 +34,101 @@ const generateUUID = () => {
 const ITEMS_PER_PAGE = 10;
 // Default to relative path to use Vite Proxy in dev, or same-domain in prod
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+
+// --- HELPERS ---
+
+const getCroppedImg = async (image: HTMLImageElement, crop: PixelCrop): Promise<File | null> => {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const scaleX = image.naturalWidth / image.width;
+  const scaleY = image.naturalHeight / image.height;
+
+  canvas.width = crop.width;
+  canvas.height = crop.height;
+
+  ctx.drawImage(
+    image,
+    crop.x * scaleX,
+    crop.y * scaleY,
+    crop.width * scaleX,
+    crop.height * scaleY,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
+
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      if (!blob) return resolve(null);
+      resolve(new File([blob], 'cropped.png', { type: 'image/png' }));
+    }, 'image/png');
+  });
+};
+
+// --- COMPONENTS ---
+
+const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, loading, imgRef }: any) => {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[85vh]">
+        <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Crop Image</h3>
+          <button onClick={onCancel} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="flex-1 relative bg-gray-200 dark:bg-black overflow-auto flex items-center justify-center p-4">
+          <ReactCrop
+            crop={crop}
+            onChange={(c) => setCrop(c)}
+            onComplete={(c) => onCropComplete(c)}
+          >
+            <img
+              ref={imgRef}
+              src={src}
+              alt="Crop target"
+              className="max-h-[60vh] object-contain"
+              onLoad={(e) => {
+                const { width, height } = e.currentTarget;
+                const initialCrop = centerCrop(
+                  makeAspectCrop({ unit: '%', width: 90 }, undefined, width, height),
+                  width,
+                  height
+                );
+                setCrop(initialCrop);
+                onCropComplete(initialCrop);
+              }}
+            />
+          </ReactCrop>
+        </div>
+
+        <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t dark:border-gray-700">
+          <div className="flex gap-4">
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onCrop}
+              disabled={loading}
+              className="flex-1 py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {loading && <RefreshCw className="animate-spin" size={18} />}
+              {loading ? 'Applying...' : 'Apply Crop'}
+            </button>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-3 text-center">Drag corners or edges to adjust the crop area.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // --- MAIN APP COMPONENT ---
 
@@ -87,6 +184,11 @@ export default function App() {
   const [selectedOnlinePatient, setSelectedOnlinePatient] = useState<OnlinePatient | null>(null);
   const [onlineImages, setOnlineImages] = useState<OnlinePatientImage[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [updateMode, setUpdateMode] = useState<'add' | 'update' | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
+  const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Helper to fetch doctors with cache-first strategy
   const fetchDoctors = (force = false) => {
@@ -174,35 +276,44 @@ export default function App() {
   };
 
   // Reusable upload function
-  const uploadOnlineImage = async (file: File) => {
+  const uploadOnlineImage = async (file: File, updateFileId?: number) => {
     if (!selectedOnlinePatient) return;
     setUploadingImage(true);
     try {
-      const compressedDataUrl = await compressImage(file);
-      const mimeType = compressedDataUrl.match(/:(.*?);/)?.[1] || 'image/png';
+      const buffer = await file.arrayBuffer();
+      const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
 
-      const payload = {
-        images: [
-          {
-            data: compressedDataUrl,
-            mimeType: mimeType
-          }
-        ],
-        username: username // Pass logged-in username
-      };
-
-      const res = await fetch(`${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if (!res.ok) throw new Error('Upload failed');
-      showToast('Image uploaded successfully', 'success');
+      if (updateFileId) {
+        // Update existing image
+        const res = await fetch(`${API_BASE_URL}/api/v1/images/${updateFileId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            data: base64,
+            mimeType: file.type,
+            username: username
+          })
+        });
+        if (!res.ok) throw new Error('Update failed');
+        showToast('Image updated successfully', 'success');
+      } else {
+        // Add new image
+        const res = await fetch(`${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            images: [{ data: base64, mimeType: file.type }],
+            username: username
+          })
+        });
+        if (!res.ok) throw new Error('Upload failed');
+        showToast('Image added successfully', 'success');
+      }
       await loadOnlineImages(selectedOnlinePatient.id);
+      setUpdateMode(null); // Reset mode after success
     } catch (err) {
       console.error(err);
-      showToast('Failed to upload image', 'error');
+      showToast(updateFileId ? 'Failed to update image' : 'Failed to upload image', 'error');
     } finally {
       setUploadingImage(false);
     }
@@ -211,13 +322,24 @@ export default function App() {
   const handleOnlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!selectedOnlinePatient || !e.target.files?.length) return;
     const file = e.target.files[0];
-    await uploadOnlineImage(file);
+
+    // Trigger Crop instead of direct upload
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+    };
+    reader.readAsDataURL(file);
     e.target.value = '';
   };
 
   const handleCameraCapture = async (file: File) => {
     if (viewMode === 'search' && selectedOnlinePatient) {
-      await uploadOnlineImage(file);
+      // Trigger Crop instead of direct upload
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     } else {
       await handleImageFile(file);
     }
@@ -600,7 +722,7 @@ export default function App() {
   // --- RENDER ---
 
   if (!isLoggedIn) {
-     return <Login onLogin={(user) => { setIsLoggedIn(true); setUsername(user); }} />;
+    return <Login onLogin={(user) => { setIsLoggedIn(true); setUsername(user); }} />;
   }
 
   return (
@@ -982,32 +1104,9 @@ export default function App() {
                           {index + 1}
                         </div>
 
-                        {/* Controls Overlay */}
-                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                            {/* Placeholder for Move Left */}
-                          </button>
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              if (!window.confirm('Delete this image permanently?')) return;
-                              try {
-                                await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, { method: 'DELETE' });
-                                showToast('Image deleted', 'success');
-                                await loadOnlineImages(selectedOnlinePatient.id);
-                              } catch (err) {
-
-                                showToast('Failed to delete', 'error');
-                              }
-                            }}
-                            className='text-red-400 hover:text-red-200 p-1'
-                            title="Delete Image"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <button className='text-white hover:text-blue-300 disabled:opacity-30' disabled>
-                            {/* Placeholder for Move Right */}
-                          </button>
+                        {/* Controls Overlay - Removed Delete per request */}
+                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-center px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                          {/* Placeholder or other controls? Just Eye icon hint is enough */}
                         </div>
 
                         {/* Hint Overlay */}
@@ -1047,32 +1146,71 @@ export default function App() {
                       </div>
                     </div>))}
 
-                  {/* Add Buttons Container */}
-                  <div className='flex flex-col gap-2'>
-                    {/* Camera Button */}
-                    <button
-                      onClick={() => setShowCamera(true)}
-                      className='w-full h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
-                    >
-                      <Camera className='text-oracle-600 mb-1' size={24} />
-                      <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
-                        Camera
-                      </span>
-                    </button>
+                  {/* Add/Update Selection */}
+                  {!updateMode ? (
+                    <div className='flex gap-4 mb-4'>
+                      <button
+                        onClick={() => setUpdateMode('add')}
+                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
+                      >
+                        <Plus className='text-oracle-600 mb-1' size={32} />
+                        <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onlineImages.length === 0) {
+                            showToast('No images to update', 'warning');
+                            return;
+                          }
+                          setUpdateMode('update');
+                        }}
+                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
+                      >
+                        <RefreshCw className='text-orange-600 mb-1' size={32} />
+                        <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className='flex flex-col gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700'>
+                      <div className='flex justify-between items-center'>
+                        <h4 className='font-bold text-gray-700 dark:text-gray-300'>
+                          {updateMode === 'add' ? 'Adding New Image' : 'Updating Last Image'}
+                        </h4>
+                        <button
+                          onClick={() => setUpdateMode(null)}
+                          className='p-1 text-gray-400 hover:text-red-500 transition-colors'
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
 
-                    {/* File Upload Button */}
-                    <label className={`w-full h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
-                      <ImageIcon className="text-gray-400 mb-1" size={24} />
-                      <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={handleOnlineImageUpload}
-                        disabled={uploadingImage}
-                      />
-                    </label>
-                  </div>
+                      <div className='grid grid-cols-2 gap-4'>
+                        {/* Camera Button */}
+                        <button
+                          onClick={() => setShowCamera(true)}
+                          className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
+                        >
+                          <Camera className='text-oracle-600 mb-1' size={28} />
+                          <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>
+                            Camera
+                          </span>
+                        </button>
+
+                        {/* File Upload Button */}
+                        <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <ImageIcon className="text-gray-400 mb-1" size={28} />
+                          <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleOnlineImageUpload}
+                            disabled={uploadingImage}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
@@ -1162,6 +1300,36 @@ export default function App() {
           <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
         )
       }
+
+      {/* Crop Modal */}
+      {imageToCrop && (
+        <CropDialog
+          src={imageToCrop}
+          crop={crop}
+          setCrop={setCrop}
+          imgRef={imgRef}
+          loading={uploadingImage}
+          onCropComplete={(c: PixelCrop) => setCompletedCrop(c)}
+          onCancel={() => {
+            if (uploadingImage) return;
+            setImageToCrop(null);
+            setUpdateMode(null);
+          }}
+          onCrop={async () => {
+            if (uploadingImage || !completedCrop || !imgRef.current) return;
+            const croppedFile = await getCroppedImg(imgRef.current, completedCrop);
+            if (croppedFile) {
+              if (updateMode === 'update') {
+                const lastImg = onlineImages[onlineImages.length - 1];
+                await uploadOnlineImage(croppedFile, lastImg.fileId);
+              } else {
+                await uploadOnlineImage(croppedFile);
+              }
+            }
+            setImageToCrop(null);
+          }}
+        />
+      )}
     </div >
   );
 }
