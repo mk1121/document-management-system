@@ -333,16 +333,12 @@ export default function App() {
   };
 
   const handleCameraCapture = async (file: File) => {
-    if (viewMode === 'search' && selectedOnlinePatient) {
-      // Trigger Crop instead of direct upload
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImageToCrop(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    } else {
-      await handleImageFile(file);
-    }
+    // Trigger Crop instead of direct action
+    const reader = new FileReader();
+    reader.onload = () => {
+      setImageToCrop(reader.result as string);
+    };
+    reader.readAsDataURL(file);
     setShowCamera(false);
   };
 
@@ -451,9 +447,14 @@ export default function App() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      for (let i = 0; i < e.target.files.length; i++) {
-        await handleImageFile(e.target.files[i]);
-      }
+      // For simplicity, we only crop the first file if multiple selected, 
+      // or we can queue. But usually users upload one or few.
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setImageToCrop(reader.result as string);
+      };
+      reader.readAsDataURL(file);
       e.target.value = '';
     }
   };
@@ -1319,11 +1320,16 @@ export default function App() {
             if (uploadingImage || !completedCrop || !imgRef.current) return;
             const croppedFile = await getCroppedImg(imgRef.current, completedCrop);
             if (croppedFile) {
-              if (updateMode === 'update') {
-                const lastImg = onlineImages[onlineImages.length - 1];
-                await uploadOnlineImage(croppedFile, lastImg.fileId);
+              if (viewMode === 'search' && selectedOnlinePatient) {
+                if (updateMode === 'update') {
+                  const lastImg = onlineImages[onlineImages.length - 1];
+                  await uploadOnlineImage(croppedFile, lastImg.fileId);
+                } else {
+                  await uploadOnlineImage(croppedFile);
+                }
               } else {
-                await uploadOnlineImage(croppedFile);
+                // Form View / Local Insertion
+                await handleImageFile(croppedFile);
               }
             }
             setImageToCrop(null);
