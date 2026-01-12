@@ -91,8 +91,9 @@ CREATE OR REPLACE TRIGGER TRG_FILE_ID
 BEFORE INSERT ON PATIENT_DOC_INFO
 FOR EACH ROW
 BEGIN
-  IF :NEW.FILE_ID IS NULL THEN
-    :NEW.FILE_ID := SEQ_FILE_ID.NEXTVAL;
+  -- SEQUENCE_NO ?? ?????? FILE_ID ?? ????? ?????
+  IF :NEW.SEQUENCE_NO IS NOT NULL THEN
+    :NEW.FILE_ID := :NEW.SEQUENCE_NO;
   END IF;
 END;
 /
@@ -130,5 +131,41 @@ BEGIN
               v_year || '-' ||
               LPAD(v_next_no, 4, '0');
     END IF;
+END;
+/
+
+-- 6. USER_ACCESS_MT (Login Table)
+CREATE TABLE "USER_ACCESS_MT" 
+   (	"USER_ID" NUMBER, 
+	"USER_NAME" VARCHAR2(30 BYTE), 
+	"USER_PASSWORD" VARCHAR2(30 BYTE), 
+	"DEVICE_ID" VARCHAR2(30 BYTE), 
+	"USER_TYPE" VARCHAR2(20 BYTE), 
+	"ACCESS_LEVEL" VARCHAR2(3 BYTE), 
+	"STATUS" VARCHAR2(4 BYTE)
+   );
+ALTER TABLE "USER_ACCESS_MT" ADD CONSTRAINT "USER_ACCESS_MT_CON" CHECK ( "USER_ID" IS NOT NULL ) ENABLE;
+ALTER TABLE "USER_ACCESS_MT" ADD CONSTRAINT "USER_ACCESS_MT_CON1" CHECK ( "USER_NAME" IS NOT NULL ) ENABLE;
+ALTER TABLE "USER_ACCESS_MT" ADD CONSTRAINT "USER_ACCESS_MT_CON2" PRIMARY KEY ("USER_ID");
+
+-- Default Admin User (admin/admin)
+INSERT INTO USER_ACCESS_MT (USER_ID, USER_NAME, USER_PASSWORD, STATUS) VALUES (1, 'admin', 'admin', 'ACT');
+COMMIT;
+
+-- 7. FD_LOGIN_F (Login Function)
+CREATE OR REPLACE FUNCTION FD_LOGIN_F(p_username in varchar2, p_password varchar2)
+RETURN BOOLEAN
+IS
+  n number;
+BEGIN
+  select count(*) into n from user_access_mt
+  where upper(user_name)=upper(p_username)
+  and upper(user_password)=upper(p_password);
+
+  if n>0 then
+    return true;
+  else 
+    return false;
+  end if;
 END;
 /
