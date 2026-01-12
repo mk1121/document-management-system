@@ -9,6 +9,7 @@ import { CameraModal } from './components/CameraModal';
 import { Header } from './components/Header';
 import { DocumentCard } from './components/DocumentCard';
 import { FormField } from './components/FormField';
+import { Login } from './components/Login';
 
 // Robust UUID generator that works in insecure contexts (HTTP)
 const generateUUID = () => {
@@ -36,6 +37,8 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [username, setUsername] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('form');
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
@@ -184,7 +187,8 @@ export default function App() {
             data: compressedDataUrl,
             mimeType: mimeType
           }
-        ]
+        ],
+        username: username // Pass logged-in username
       };
 
       const res = await fetch(`${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`, {
@@ -471,6 +475,7 @@ export default function App() {
             emgContactNo: doc.emgContactNo,
             refBy: doc.refBy,
           },
+          username: username, // Pass logged-in username
           attachments: details.map((d) => ({
             sequence: d.sequence,
             mimeType: d.mimeType,
@@ -593,6 +598,10 @@ export default function App() {
   };
 
   // --- RENDER ---
+
+  if (!isLoggedIn) {
+     return <Login onLogin={(user) => { setIsLoggedIn(true); setUsername(user); }} />;
+  }
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
@@ -1022,7 +1031,7 @@ export default function App() {
                               const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
                                 method: 'PUT',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ nextApp: newDate || null })
+                                body: JSON.stringify({ nextApp: newDate || null, username: username })
                               });
                               if (!res.ok) throw new Error('Update failed');
                               showToast('Date updated', 'success');
