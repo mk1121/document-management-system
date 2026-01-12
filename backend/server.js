@@ -370,23 +370,38 @@ app.delete('/api/v1/images/:fileId', async (req, res) => {
 // -----------------------------------------------------------------------------
 app.put('/api/v1/images/:fileId', async (req, res) => {
   const { fileId } = req.params;
-  const { nextApp, username } = req.body; // Expect YYYY-MM-DD string or null
+  const { nextApp, username, data, mimeType } = req.body;
 
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    const sql = `
-      UPDATE PATIENT_DOC_INFO
-      SET NEXT_APP = TO_DATE(:nextApp, 'YYYY-MM-DD'),
-          LAST_UPDATE = :userId,
-          LAST_UPDATE_DATE = SYSDATE
-      WHERE FILE_ID = :fid
-    `;
-    await connection.execute(sql, { 
-      nextApp: nextApp || null, 
-      fid: fileId,
-      userId: username || null
-    }, { autoCommit: true });
+
+    let sql, binds;
+    if (data) {
+      // Full update including image
+      const buffer = Buffer.from(data, 'base64');
+      sql = `
+        UPDATE PATIENT_DOC_INFO
+        SET PATIENT_DOC = :data,
+            PHOTO_MIME_TYPE = :mime,
+            LAST_UPDATE = :userId,
+            LAST_UPDATE_DATE = SYSDATE
+        WHERE FILE_ID = :fid
+      `;
+      binds = { data: buffer, mime: mimeType || 'image/png', userId: username || null, fid: fileId };
+    } else {
+      // Metadata only update
+      sql = `
+        UPDATE PATIENT_DOC_INFO
+        SET NEXT_APP = TO_DATE(:nextApp, 'YYYY-MM-DD'),
+            LAST_UPDATE = :userId,
+            LAST_UPDATE_DATE = SYSDATE
+        WHERE FILE_ID = :fid
+      `;
+      binds = { nextApp: nextApp || null, userId: username || null, fid: fileId };
+    }
+
+    await connection.execute(sql, binds, { autoCommit: true });
     res.json({ message: 'Image updated successfully' });
   } catch (err) {
     console.error("Update Image Error", err);
@@ -464,7 +479,7 @@ app.post('/api/v1/login', async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // Call the boolean function FD_LOGIN_F
     const result = await connection.execute(
       `BEGIN
