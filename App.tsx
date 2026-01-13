@@ -130,6 +130,89 @@ const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, load
   );
 };
 
+const ImageOptionsDialog = ({ src, onCrop, onSave, onCancel, loading }: any) => {
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
+        <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Image Options</h3>
+          <button onClick={onCancel} disabled={loading} className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50">
+            <X size={24} />
+          </button>
+        </div>
+
+        <div className="p-4 flex flex-col items-center">
+          <div className="w-full aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 mb-6">
+            <img src={src} alt="Preview" className="w-full h-full object-contain" />
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 w-full">
+            <button
+              onClick={onCrop}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={18} />
+              Crop Image
+            </button>
+            <button
+              onClick={onSave}
+              disabled={loading}
+              className="w-full py-3 px-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <RefreshCw className="animate-spin" size={18} />
+              ) : (
+                <Save size={18} />
+              )}
+              {loading ? 'Processing...' : 'Save Original'}
+            </button>
+            <button
+              onClick={onCancel}
+              disabled={loading}
+              className="w-full py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={`bg-gray-200 dark:bg-gray-700 animate-pulse rounded ${className}`}>
+    {/* Shimmer effect for skeleton loading - Reduced opacity for better dark mode UI */}
+    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer" />
+  </div>
+);
+
+const OnlineImageCard = ({ img }: { img: OnlinePatientImage }) => {
+  const [loaded, setLoaded] = useState(false);
+  return (
+    <div className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-transparent transition-all shadow-sm">
+      {!loaded && <Skeleton className="absolute inset-0 z-10" />}
+      <img
+        src={img.data}
+        alt={`Page ${img.sequence}`}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
+        onLoad={() => setLoaded(true)}
+      />
+      <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-md p-2 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+        <div className="flex justify-between items-center">
+          <span className="text-white text-xs font-medium">Page {img.sequence}</span>
+          {img.nextApp && (
+            <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+              {img.nextApp}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
@@ -183,8 +266,14 @@ export default function App() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedOnlinePatient, setSelectedOnlinePatient] = useState<OnlinePatient | null>(null);
   const [onlineImages, setOnlineImages] = useState<OnlinePatientImage[]>([]);
+  const [loadingImages, setLoadingImages] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [updateMode, setUpdateMode] = useState<'add' | 'update' | null>(null);
+
+  // New workflow states
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+
   const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();
@@ -252,6 +341,7 @@ export default function App() {
   };
 
   const loadOnlineImages = async (patientId: number) => {
+    setLoadingImages(true);
     try {
       // Add timestamp to prevent caching
       const res = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`);
@@ -266,6 +356,8 @@ export default function App() {
     } catch (err) {
       console.error(err);
       showToast('Failed to load patient images', 'error');
+    } finally {
+      setLoadingImages(false);
     }
   };
 
@@ -280,8 +372,10 @@ export default function App() {
     if (!selectedOnlinePatient) return;
     setUploadingImage(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const base64 = btoa(new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), ''));
+      // Apply High-Efficiency WebP compression before uploading
+      const compressedDataUrl = await compressImage(file);
+      const base64 = compressedDataUrl.split(',')[1];
+      const mimeType = compressedDataUrl.split(';')[0].split(':')[1] || 'image/webp';
 
       if (updateFileId) {
         // Update existing image
@@ -290,7 +384,7 @@ export default function App() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             data: base64,
-            mimeType: file.type,
+            mimeType: mimeType,
             username: username
           })
         });
@@ -302,7 +396,7 @@ export default function App() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            images: [{ data: base64, mimeType: file.type }],
+            images: [{ data: base64, mimeType: mimeType }],
             username: username
           })
         });
@@ -323,27 +417,43 @@ export default function App() {
     if (!selectedOnlinePatient || !e.target.files?.length) return;
     const file = e.target.files[0];
 
-    // Trigger Crop instead of direct upload
+    // Trigger Options Step
     const reader = new FileReader();
     reader.onload = () => {
-      setImageToCrop(reader.result as string);
+      setPendingImageFile(file);
+      setPendingImageUrl(reader.result as string);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
   };
 
   const handleCameraCapture = async (file: File) => {
+    // Trigger Options Step
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPendingImageFile(file);
+      setPendingImageUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+    setShowCamera(false);
+  };
+
+  const processFinalImage = async (file: File) => {
     if (viewMode === 'search' && selectedOnlinePatient) {
-      // Trigger Crop instead of direct upload
-      const reader = new FileReader();
-      reader.onload = () => {
-        setImageToCrop(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      if (updateMode === 'update') {
+        const lastImg = onlineImages[onlineImages.length - 1];
+        await uploadOnlineImage(file, lastImg.fileId);
+      } else {
+        await uploadOnlineImage(file);
+      }
     } else {
+      // Form View / Local Insertion
       await handleImageFile(file);
     }
-    setShowCamera(false);
+    // Cleanup
+    setPendingImageFile(null);
+    setPendingImageUrl(null);
+    setImageToCrop(null);
   };
 
   const removeImage = (id: string) => {
@@ -361,15 +471,17 @@ export default function App() {
   };
 
   const refreshCounts = async () => {
-    const pending = await DB.getPendingDocuments();
+    if (!username) return;
+    const pending = await DB.getPendingDocuments(username);
     setPendingCount(pending.length);
-    const failed = await DB.getFailedDocuments();
+    const failed = await DB.getFailedDocuments(username);
     setFailedCount(failed.length);
   };
 
   const loadDocs = async (pageNum: number) => {
+    if (!username) return;
     try {
-      const { docs, total } = await DB.getDocuments(pageNum, ITEMS_PER_PAGE);
+      const { docs, total } = await DB.getDocuments(pageNum, ITEMS_PER_PAGE, username);
       setDocList(docs);
       setTotalDocs(total);
       setPage(pageNum);
@@ -379,14 +491,22 @@ export default function App() {
 
   useEffect(() => {
     const init = async () => {
+      // Handle DB clear if pending
+      const clearPending = localStorage.getItem('clear_db_pending');
+      if (clearPending === 'true' && username) {
+        try {
+          await DB.clearDatabase(username);
+          localStorage.removeItem('clear_db_pending');
+          showToast('Data cleared successfully.', 'success');
+        } catch (e) {
+          console.error(e);
+        }
+      }
 
       // Theme
       const savedTheme = localStorage.getItem('theme');
       if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-
         setDarkMode(true);
-      } else {
-
       }
 
       await refreshCounts();
@@ -394,7 +514,7 @@ export default function App() {
       fetchDoctors(true);
     };
     init();
-  }, []);
+  }, [isLoggedIn, username]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -407,6 +527,20 @@ export default function App() {
       localStorage.setItem('theme', 'light');
     }
   }, [darkMode]);
+
+  // Auto-close camera when tab is switched or window minimized
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && showCamera) {
+        setShowCamera(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [showCamera]);
 
   const calculateAge = (dobString: string): number => {
     if (!dobString) return 0;
@@ -451,9 +585,13 @@ export default function App() {
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      for (let i = 0; i < e.target.files.length; i++) {
-        await handleImageFile(e.target.files[i]);
-      }
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        setPendingImageFile(file);
+        setPendingImageUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
       e.target.value = '';
     }
   };
@@ -461,7 +599,7 @@ export default function App() {
   const handleEdit = async (doc: DocMaster) => {
     setIsProcessing(true);
     try {
-      const details = await DB.getDocumentDetails(doc.id);
+      const details = await DB.getDocumentDetails(doc.id, username);
       setFormData({
         name: doc.name,
         gender: doc.gender || 'Male',
@@ -535,11 +673,11 @@ export default function App() {
       });
 
       if (editingId) {
-        await DB.updateDocument(master, details);
+        await DB.updateDocument(master, details, username);
         showToast("Document Updated Locally!", 'success');
         setEditingId(null);
       } else {
-        await DB.saveDocument(master, details);
+        await DB.saveDocument(master, details, username);
         // showToast("Document Saved Locally!", 'success');
       }
 
@@ -572,7 +710,7 @@ export default function App() {
       setSyncStatus(`Syncing ${i + 1}/${totalToSync}`);
 
       try {
-        const details = await DB.getDocumentDetails(doc.id);
+        const details = await DB.getDocumentDetails(doc.id, username);
 
         // Construct Payload matching Backend Expectation
         const payload = {
@@ -621,7 +759,7 @@ export default function App() {
           throw new Error(errData.message || `Server error ${response.status}`);
         }
 
-        await DB.markAsSynced(doc.id);
+        await DB.markAsSynced(doc.id, username);
         successCount++;
 
         // Invalidate Cache after successful sync
@@ -645,7 +783,7 @@ export default function App() {
       } catch (docErr: any) {
         console.error(`Failed to sync doc ${doc.id}:`, docErr);
         // Explicitly mark as failed so it can be retried later
-        await DB.markAsFailed(doc.id);
+        await DB.markAsFailed(doc.id, username);
         failCount++;
       }
     }
@@ -662,7 +800,7 @@ export default function App() {
     setIsSyncing(true);
     setSyncStatus('Preparing...');
     try {
-      const pendingDocs = await DB.getPendingDocuments();
+      const pendingDocs = await DB.getPendingDocuments(username);
       if (pendingDocs.length === 0) {
         showToast('No pending documents to sync.', 'info');
         setIsSyncing(false);
@@ -684,7 +822,7 @@ export default function App() {
     setIsSyncing(true);
     setSyncStatus('Preparing Retry...');
     try {
-      const failedDocs = await DB.getFailedDocuments();
+      const failedDocs = await DB.getFailedDocuments(username);
       if (failedDocs.length === 0) {
         showToast('No failed documents to retry.', 'info');
         setIsSyncing(false);
@@ -1067,7 +1205,6 @@ export default function App() {
               </form>
             </div>
 
-            {/* Results or Details */}
             {selectedOnlinePatient ? (
               <div className='bg-white dark:bg-gray-800 shadow rounded-lg p-6 animate-fade-in'>
                 <div className="flex justify-between items-start mb-6 border-b dark:border-gray-700 pb-4">
@@ -1091,127 +1228,127 @@ export default function App() {
                 {/* Images */}
                 <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Patient Documents</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
-                  {onlineImages.map((img, index) => (
-                    <div key={img.fileId} className="flex flex-col gap-1.5">
-                      <div className="relative group aspect-[3/4] bg-gray-100 dark:bg-gray-900 rounded-lg overflow-hidden border dark:border-gray-700 shadow-sm">
-                        <img
-                          src={img.data}
-                          alt="Document"
-                          className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                          onClick={() => setPreviewImage(img.data)}
-                        />
-                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                          {index + 1}
-                        </div>
-
-                        {/* Controls Overlay - Removed Delete per request */}
-                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-center px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                          {/* Placeholder or other controls? Just Eye icon hint is enough */}
-                        </div>
-
-                        {/* Hint Overlay */}
-                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                          <div className='bg-black/50 rounded-full p-2'>
-                            <Eye size={24} className='text-white' />
-                          </div>
-                        </div>
+                  {loadingImages ? (
+                    Array(4).fill(0).map((_, i) => (
+                      <div key={i} className="aspect-[3/4] relative">
+                        <Skeleton className="absolute inset-0 rounded-xl" />
                       </div>
-                      {/* Per-Image Date Picker (Updateable) */}
-                      <div className="flex flex-col mt-1.5">
-                        <label className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5">Next App Date:</label>
-                        <input
-                          type="date"
-                          defaultValue={img.nextApp || ''}
-                          onBlur={async (e) => {
-                            const newDate = e.target.value;
-                            if (newDate === img.nextApp) return; // No change
-                            try {
-                              showToast('Updating date...', 'success');
-                              const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ nextApp: newDate || null, username: username })
-                              });
-                              if (!res.ok) throw new Error('Update failed');
-                              showToast('Date updated', 'success');
-                              // allow UI to reflect naturally or reload?
-                              // Ideally update local state to avoid jump
-                            } catch (err) {
-                              console.error(err);
-                              showToast('Failed to update date', 'error');
-                            }
-                          }}
-                          className="w-full text-xs px-2 py-1.5 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
-                        />
-                      </div>
-                    </div>))}
-
-                  {/* Add/Update Selection */}
-                  {!updateMode ? (
-                    <div className='flex gap-4 mb-4'>
-                      <button
-                        onClick={() => setUpdateMode('add')}
-                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
-                      >
-                        <Plus className='text-oracle-600 mb-1' size={32} />
-                        <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
-                      </button>
-                      <button
-                        onClick={() => {
-                          if (onlineImages.length === 0) {
-                            showToast('No images to update', 'warning');
-                            return;
-                          }
-                          setUpdateMode('update');
-                        }}
-                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
-                      >
-                        <RefreshCw className='text-orange-600 mb-1' size={32} />
-                        <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className='flex flex-col gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700'>
-                      <div className='flex justify-between items-center'>
-                        <h4 className='font-bold text-gray-700 dark:text-gray-300'>
-                          {updateMode === 'add' ? 'Adding New Image' : 'Updating Last Image'}
-                        </h4>
-                        <button
-                          onClick={() => setUpdateMode(null)}
-                          className='p-1 text-gray-400 hover:text-red-500 transition-colors'
-                        >
-                          <X size={20} />
-                        </button>
-                      </div>
-
-                      <div className='grid grid-cols-2 gap-4'>
-                        {/* Camera Button */}
-                        <button
-                          onClick={() => setShowCamera(true)}
-                          className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
-                        >
-                          <Camera className='text-oracle-600 mb-1' size={28} />
-                          <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>
-                            Camera
-                          </span>
-                        </button>
-
-                        {/* File Upload Button */}
-                        <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
-                          <ImageIcon className="text-gray-400 mb-1" size={28} />
-                          <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                    ))
+                  ) : onlineImages.length > 0 ? (
+                    onlineImages.map((img) => (
+                      <div key={img.fileId} className="flex flex-col gap-1.5">
+                        <div className="cursor-pointer" onClick={() => setPreviewImage(img.data)}>
+                          <OnlineImageCard img={img} />
+                        </div>
+                        {/* Per-Image Date Picker */}
+                        <div className="flex flex-col mt-0.5">
+                          <label className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5">Next App Date:</label>
                           <input
-                            type="file"
-                            accept="image/*"
-                            className="hidden"
-                            onChange={handleOnlineImageUpload}
-                            disabled={uploadingImage}
+                            type="date"
+                            defaultValue={img.nextApp || ''}
+                            onBlur={async (e) => {
+                              const newDate = e.target.value;
+                              if (newDate === img.nextApp) return;
+                              try {
+                                showToast('Updating date...', 'success');
+                                const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ nextApp: newDate || null, username: username })
+                                });
+                                if (!res.ok) throw new Error('Update failed');
+                                showToast('Date updated', 'success');
+                              } catch (err) {
+                                console.error(err);
+                                showToast('Failed to update date', 'error');
+                              }
+                            }}
+                            className="w-full text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
                           />
-                        </label>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full py-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed dark:border-gray-700">
+                      <ImageIcon className="mx-auto text-gray-300 dark:text-gray-600 mb-2" size={48} />
+                      <p className="text-gray-500 dark:text-gray-400">No documents found for this patient.</p>
                     </div>
                   )}
                 </div>
+
+                {/* Add/Update Selection */}
+                {!updateMode ? (
+                  <div className='flex gap-4 mb-4'>
+                    <button
+                      onClick={() => setUpdateMode('add')}
+                      className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
+                    >
+                      <Plus className='text-oracle-600 mb-1' size={32} />
+                      <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (onlineImages.length === 0) {
+                          showToast('No images to update', 'warning');
+                          return;
+                        }
+                        setUpdateMode('update');
+                      }}
+                      className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
+                    >
+                      <RefreshCw className='text-orange-600 mb-1' size={32} />
+                      <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className='flex flex-col gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700'>
+                    <div className='flex justify-between items-center'>
+                      <h4 className='font-bold text-gray-700 dark:text-gray-300'>
+                        {updateMode === 'add' ? 'Adding New Image' : 'Updating Last Image'}
+                      </h4>
+                      <button
+                        onClick={() => setUpdateMode(null)}
+                        className='p-1 text-gray-400 hover:text-red-500 transition-colors'
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+
+                    <div className='grid grid-cols-2 gap-4'>
+                      <button
+                        onClick={() => setShowCamera(true)}
+                        className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
+                      >
+                        <Camera className='text-oracle-600 mb-1' size={28} />
+                        <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>Camera</span>
+                      </button>
+
+                      <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                        <ImageIcon className="text-gray-400 mb-1" size={28} />
+                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleOnlineImageUpload}
+                          disabled={uploadingImage}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : isSearching ? (
+              <div className="flex flex-col gap-4">
+                {Array(3).fill(0).map((_, i) => (
+                  <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-100 dark:border-gray-700 flex justify-between items-center">
+                    <div className="flex-1 space-y-2">
+                      <Skeleton className="h-5 w-1/3" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                    <Skeleton className="h-4 w-20" />
+                  </div>
+                ))}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4">
@@ -1241,8 +1378,7 @@ export default function App() {
                   </div>
                 )}
               </div>
-            )
-            }
+            )}
           </div >
         ) : (
           /* LIST VIEW */
@@ -1301,6 +1437,21 @@ export default function App() {
         )
       }
 
+      {/* Selection Modal (Crop vs Save) */}
+      {pendingImageUrl && !imageToCrop && (
+        <ImageOptionsDialog
+          src={pendingImageUrl}
+          onCrop={() => setImageToCrop(pendingImageUrl)}
+          onSave={() => pendingImageFile && processFinalImage(pendingImageFile)}
+          loading={uploadingImage || isProcessing}
+          onCancel={() => {
+            setPendingImageFile(null);
+            setPendingImageUrl(null);
+            setUpdateMode(null);
+          }}
+        />
+      )}
+
       {/* Crop Modal */}
       {imageToCrop && (
         <CropDialog
@@ -1313,20 +1464,14 @@ export default function App() {
           onCancel={() => {
             if (uploadingImage) return;
             setImageToCrop(null);
-            setUpdateMode(null);
+            // Don't clear pending image, so they can go back to options
           }}
           onCrop={async () => {
             if (uploadingImage || !completedCrop || !imgRef.current) return;
             const croppedFile = await getCroppedImg(imgRef.current, completedCrop);
             if (croppedFile) {
-              if (updateMode === 'update') {
-                const lastImg = onlineImages[onlineImages.length - 1];
-                await uploadOnlineImage(croppedFile, lastImg.fileId);
-              } else {
-                await uploadOnlineImage(croppedFile);
-              }
+              await processFinalImage(croppedFile);
             }
-            setImageToCrop(null);
           }}
         />
       )}

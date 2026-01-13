@@ -1,20 +1,18 @@
 import { DocMaster, DocDetail } from '../types';
 
 // Simple IndexedDB wrapper since LocalStorage has a 5MB limit which is insufficient for images.
-const DB_NAME = 'DocDigitizeDB';
+const BASE_DB_NAME = 'DocDigitizeDB';
 const DB_VERSION = 1;
 const MASTER_STORE = 'masters';
 const DETAIL_STORE = 'details';
 
 /**
- * Opens a connection to the IndexedDB database.
- * Creates object stores and indices if they do not exist (during upgrade).
- *
- * @returns {Promise<IDBDatabase>} A promise resolving to the database instance.
+ * Opens a connection to the IndexedDB database for a specific user.
  */
-const openDB = (): Promise<IDBDatabase> => {
+const openDB = (username: string): Promise<IDBDatabase> => {
+  const dbName = `${BASE_DB_NAME}_${username}`;
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    const request = indexedDB.open(dbName, DB_VERSION);
 
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
@@ -41,8 +39,8 @@ const openDB = (): Promise<IDBDatabase> => {
  * @param {DocDetail[]} details - The array of image details.
  * @returns {Promise<void>}
  */
-export const saveDocument = async (master: DocMaster, details: DocDetail[]): Promise<void> => {
-  const db = await openDB();
+export const saveDocument = async (master: DocMaster, details: DocDetail[], username: string): Promise<void> => {
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([MASTER_STORE, DETAIL_STORE], 'readwrite');
 
@@ -61,8 +59,8 @@ export const saveDocument = async (master: DocMaster, details: DocDetail[]): Pro
  * Updates an existing document.
  * replaces the master record and REPLACES all details.
  */
-export const updateDocument = async (master: DocMaster, details: DocDetail[]): Promise<void> => {
-  const db = await openDB();
+export const updateDocument = async (master: DocMaster, details: DocDetail[], username: string): Promise<void> => {
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([MASTER_STORE, DETAIL_STORE], 'readwrite');
 
@@ -107,8 +105,9 @@ export const updateDocument = async (master: DocMaster, details: DocDetail[]): P
 export const getDocuments = async (
   page: number,
   limit: number,
+  username: string
 ): Promise<{ docs: DocMaster[]; total: number }> => {
-  const db = await openDB();
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([MASTER_STORE], 'readonly');
     const store = transaction.objectStore(MASTER_STORE);
@@ -163,8 +162,8 @@ export const getDocuments = async (
  * @param {string} masterId - The UUID of the master document.
  * @returns {Promise<DocDetail[]>} Array of image details sorted by sequence.
  */
-export const getDocumentDetails = async (masterId: string): Promise<DocDetail[]> => {
-  const db = await openDB();
+export const getDocumentDetails = async (masterId: string, username: string): Promise<DocDetail[]> => {
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const transaction = db.transaction([DETAIL_STORE], 'readonly');
     const store = transaction.objectStore(DETAIL_STORE);
@@ -187,8 +186,8 @@ export const getDocumentDetails = async (masterId: string): Promise<DocDetail[]>
  *
  * @returns {Promise<DocMaster[]>} List of pending documents.
  */
-export const getPendingDocuments = async (): Promise<DocMaster[]> => {
-  const db = await openDB();
+export const getPendingDocuments = async (username: string): Promise<DocMaster[]> => {
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const tx = db.transaction([MASTER_STORE], 'readonly');
     const index = tx.objectStore(MASTER_STORE).index('syncStatus');
@@ -203,8 +202,8 @@ export const getPendingDocuments = async (): Promise<DocMaster[]> => {
  *
  * @returns {Promise<DocMaster[]>} List of failed documents.
  */
-export const getFailedDocuments = async (): Promise<DocMaster[]> => {
-  const db = await openDB();
+export const getFailedDocuments = async (username: string): Promise<DocMaster[]> => {
+  const db = await openDB(username);
   return new Promise((resolve, reject) => {
     const tx = db.transaction([MASTER_STORE], 'readonly');
     const index = tx.objectStore(MASTER_STORE).index('syncStatus');
@@ -219,8 +218,8 @@ export const getFailedDocuments = async (): Promise<DocMaster[]> => {
  *
  * @param {string} masterId - The UUID of the document to update.
  */
-export const markAsSynced = async (masterId: string) => {
-  const db = await openDB();
+export const markAsSynced = async (masterId: string, username: string) => {
+  const db = await openDB(username);
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction([MASTER_STORE], 'readwrite');
     const store = tx.objectStore(MASTER_STORE);
@@ -243,8 +242,8 @@ export const markAsSynced = async (masterId: string) => {
  *
  * @param {string} masterId - The UUID of the document to update.
  */
-export const markAsFailed = async (masterId: string) => {
-  const db = await openDB();
+export const markAsFailed = async (masterId: string, username: string) => {
+  const db = await openDB(username);
   return new Promise<void>((resolve, reject) => {
     const tx = db.transaction([MASTER_STORE], 'readwrite');
     const store = tx.objectStore(MASTER_STORE);
@@ -267,9 +266,10 @@ export const markAsFailed = async (masterId: string) => {
  *
  * @returns {Promise<void>}
  */
-export const clearDatabase = async (): Promise<void> => {
+export const clearDatabase = async (username: string): Promise<void> => {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.deleteDatabase(DB_NAME);
+    const dbName = `${BASE_DB_NAME}_${username}`;
+    const request = indexedDB.deleteDatabase(dbName);
     request.onsuccess = () => resolve();
     request.onerror = () => reject(request.error);
     request.onblocked = () => {
