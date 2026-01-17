@@ -1,7 +1,7 @@
 {
   "appId": "com.docudigitize.app",
   "appName": "DocuDigitize Pro",
-  "webDir": ".next/static/pages",
+  "webDir": "out",
   "bundledWebRuntime": false,
   "ios": {
     "contentInset": "automatic"
