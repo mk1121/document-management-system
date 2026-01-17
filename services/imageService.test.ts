@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { compressImage } from './imageService';
 
 describe('imageService', () => {
@@ -15,7 +14,7 @@ describe('imageService', () => {
         }, 0);
       }
     }
-    vi.stubGlobal('FileReader', MockFileReader);
+    Object.defineProperty(global, 'FileReader', { value: MockFileReader });
 
     // Mock Image
     class MockImage {
@@ -31,21 +30,21 @@ describe('imageService', () => {
         }, 0);
       }
     }
-    vi.stubGlobal('Image', MockImage);
+    Object.defineProperty(global, 'Image', { value: MockImage });
 
     // Mock HTMLCanvasElement
     const mockContext = {
       imageSmoothingEnabled: false,
       imageSmoothingQuality: 'low',
-      drawImage: vi.fn(),
+      drawImage: jest.fn(),
     };
     const mockCanvas = {
       width: 0,
       height: 0,
-      getContext: vi.fn(() => mockContext),
-      toDataURL: vi.fn((type, _) => `data:${type};base64,compressed-data`),
+      getContext: jest.fn(() => mockContext),
+      toDataURL: jest.fn((type, _) => `data:${type};base64,compressed-data`),
     };
-    vi.spyOn(document, 'createElement').mockImplementation((tagName) => {
+    jest.spyOn(document, 'createElement').mockImplementation((tagName) => {
       if (tagName === 'canvas') {
         return mockCanvas as any;
       }
@@ -54,8 +53,7 @@ describe('imageService', () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
-    vi.unstubAllGlobals();
+    jest.restoreAllMocks();
   });
 
   it('compresses image successfully', async () => {
@@ -77,7 +75,7 @@ describe('imageService', () => {
         }, 0);
       }
     }
-    vi.stubGlobal('FileReader', FailFileReader);
+    Object.defineProperty(global, 'FileReader', { value: FailFileReader });
 
     const file = new File(['fake content'], 'test.jpg', { type: 'image/jpeg' });
     await expect(compressImage(file)).rejects.toThrow('Read failed');

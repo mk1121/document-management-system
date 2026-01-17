@@ -21,6 +21,7 @@
 ## 🛠 Tech Stack
 
 ### Frontend
+
 - **Framework**: React 18 (Vite)
 - **Styling**: Tailwind CSS
 - **Local Storage**: Native IndexedDB (Wrappers in `services/db.ts`)
@@ -28,11 +29,13 @@
 - **PWA**: `vite-plugin-pwa` (Workbox)
 
 ### Backend
+
 - **Runtime**: Node.js (Express)
 - **Database**: Oracle Database 19c+
 - **Driver**: `node-oracledb`
 
 ### Infrastructure
+
 - **CI/CD**: GitHub Actions (Test & Build on push)
 - **Package Manager**: Bun / NPM
 
@@ -56,47 +59,64 @@
 ## 📖 Getting Started
 
 ### Prerequisites
+
 - Node.js & Bun (or npm)
 - Oracle Database (Local or Cloud)
 
 ### 1. Backend Setup
+
 Navigate to `backend/` and install dependencies:
+
 ```bash
 cd backend
 npm install
 ```
+
 Configure `.env` in `backend/`:
+
 ```env
 DB_USER=your_user
 DB_PASSWORD=your_password
 DB_CONNECT_STRING=localhost/xepdb1
 GEMINI_API_KEY=optional_utility_key
 ```
+
 Start the server:
+
 ```bash
 node server.js
 ```
 
 ### 2. Frontend Setup
+
 Install dependencies:
+
 ```bash
 bun install
 ```
+
 Start Development Server:
+
 ```bash
 bun run dev
 ```
+
 Build for Production:
+
 ```bash
 bun run build
 ```
+
 Preview Production Build:
+
 ```bash
 bun run preview
 ```
 
 ### 3. Testing
+
 Run the test suite (Vitest):
+
 ```bash
 bun run test
 ```
@@ -109,4 +129,5 @@ bun run test
 4.  **Install**: Click "Install App" (if supported) to add to home screen.
 
 ## 📄 License
+
 Private Property of DocuDigitize Team.

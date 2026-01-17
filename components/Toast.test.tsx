@@ -1,7 +1,6 @@
 import { render, screen, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ToastProvider, useToast } from './Toast';
-import { vi, describe, it, expect } from 'vitest';
 
 // Test component to trigger toasts
 const TestComponent = () => {
@@ -54,7 +53,7 @@ describe('Toast Component', () => {
   });
 
   it('auto removes toast after 4 seconds', () => {
-    vi.useFakeTimers();
+    jest.useFakeTimers();
 
     render(
       <ToastProvider>
@@ -69,10 +68,10 @@ describe('Toast Component', () => {
     expect(screen.getByText('Success Message')).toBeInTheDocument();
 
     act(() => {
-      vi.advanceTimersByTime(4000);
+      jest.advanceTimersByTime(4000);
     });
 
     expect(screen.queryByText('Success Message')).not.toBeInTheDocument();
-    vi.useRealTimers();
+    jest.useRealTimers();
   });
 });

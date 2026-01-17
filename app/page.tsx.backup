@@ -1,0 +1,138 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X, Plus, RefreshCw } from 'lucide-react';
+import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
+import 'react-image-crop/dist/ReactCrop.css';
+import { DocMaster, DocDetail, ViewMode, Doctor, OnlinePatient, OnlinePatientImage } from '@/types';
+import * as DB from '@/services/db';
+import { compressImage } from '@/services/imageService';
+import { useToast } from '@/components/Toast';
+import { ImagePreviewModal } from '@/components/ImagePreviewModal';
+import { CameraModal } from '@/components/CameraModal';
+import { Header } from '@/components/Header';
+import { DocumentCard } from '@/components/DocumentCard';
+import { FormField } from '@/components/FormField';
+import { Login } from '@/components/Login';
+
+// Robust UUID generator that works in insecure contexts (HTTP)
+const generateUUID = () => {
+  // Try native crypto API if available (Secure Contexts)
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    try {
+      return crypto.randomUUID();
+    } catch (_e) {
+      // Fallback if invocation fails
+    }
+  }
+  // Fallback for non-secure contexts (e.g. LAN IP usage)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0,
+      v = c == 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const ITEMS_PER_PAGE = 10;
+// Use Next.js environment variable
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || '';
+
+export default function Home() {
+  const [darkMode, setDarkMode] = useState(false);
+  const [_isLoggedIn, _setIsLoggedIn] = useState(true);
+  const [_username, _setUsername] = useState('user');
+  const [docList, setDocList] = useState<DocMaster[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalDocs, setTotalDocs] = useState(0);
+  const [_isProcessing, _setIsProcessing] = useState(false);
+
+  const router = useRouter();
+
+  const loadDocs = useCallback(
+    async (pageNum: number) => {
+      if (!_username) return;
+      try {
+        const { docs, total } = await DB.getDocuments(pageNum, ITEMS_PER_PAGE, _username);
+        setDocList(docs);
+        setTotalDocs(total);
+        setPage(pageNum);
+      } catch (e) {
+        console.error('Failed to load docs:', e);
+      }
+    },
+    [_username],
+  );
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDocs(1);
+  }, [loadDocs]);
+
+  const handleEdit = async (doc: DocMaster) => {
+    router.push(`/form?edit=${doc.id}`);
+  };
+
+  const handleNewDocument = () => {
+    router.push('/form');
+  };
+
+  return (
+    <div className={`min-h-screen ${darkMode ? 'dark' : ''} bg-gray-50 dark:bg-gray-900`}>
+      <Header
+        viewMode='list'
+        setViewMode={() => {}}
+        darkMode={darkMode}
+        setDarkMode={setDarkMode}
+        onNewDocument={handleNewDocument}
+        onSearch={() => router.push('/search')}
+      />
+
+      <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
+        <div className='space-y-6'>
+          <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
+            {docList.length === 0 ? (
+              <div className='col-span-full text-center py-12 text-gray-500 dark:text-gray-400'>
+                No documents found.{' '}
+                <button onClick={handleNewDocument} className='text-blue-600 hover:underline'>
+                  Create one
+                </button>
+                .
+              </div>
+            ) : (
+              docList.map((doc) => (
+                <DocumentCard key={doc.id} doc={doc} onEdit={handleEdit} username={_username} />
+              ))
+            )}
+          </div>
+
+          {/* Pagination */}
+          {totalDocs > ITEMS_PER_PAGE && (
+            <div className='flex justify-between items-center bg-white dark:bg-gray-800 px-4 py-3 border-t border-gray-200 dark:border-gray-700 sm:px-6 rounded-lg shadow'>
+              <div className='text-sm text-gray-700 dark:text-gray-300'>
+                Showing <span className='font-medium'>{(page - 1) * ITEMS_PER_PAGE + 1}</span> to{' '}
+                <span className='font-medium'>{Math.min(page * ITEMS_PER_PAGE, totalDocs)}</span> of{' '}
+                <span className='font-medium'>{totalDocs}</span> results
+              </div>
+              <div className='flex space-x-2'>
+                <button
+                  onClick={() => loadDocs(page - 1)}
+                  disabled={page === 1}
+                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 dark:border-gray-600 dark:text-white'
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => loadDocs(page + 1)}
+                  disabled={page * ITEMS_PER_PAGE >= totalDocs}
+                  className='px-3 py-1 border rounded text-sm disabled:opacity-50 dark:border-gray-600 dark:text-white'
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}

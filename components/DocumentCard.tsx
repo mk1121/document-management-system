@@ -6,20 +6,20 @@ import * as DB from '../services/db';
 interface DocumentCardProps {
   doc: DocMaster;
   onEdit: (doc: DocMaster) => void;
+  username: string;
 }
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
-
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit, username }) => {
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 
   useEffect(() => {
     // Load first image as thumbnail
-    DB.getDocumentDetails(doc.id).then((details) => {
+    DB.getDocumentDetails(doc.id, username).then((details) => {
       if (details.length > 0) {
         setThumbnail(details[0].imageData);
       }
     });
-  }, [doc.id]);
+  }, [doc.id, username]);
 
   return (
     <div className='bg-white dark:bg-gray-800 overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow duration-200 border border-gray-100 dark:border-gray-700 relative'>
@@ -40,7 +40,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
               onEdit(doc);
             }}
             className='absolute top-2 left-2 p-1.5 bg-white bg-opacity-90 rounded-full text-gray-700 shadow-sm hover:text-oracle-600 hover:bg-white transition-colors'
-            title="Edit Document"
+            title='Edit Document'
           >
             <Edit size={16} />
           </button>

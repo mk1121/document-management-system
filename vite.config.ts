@@ -27,10 +27,10 @@ export default defineConfig(({ mode }) => {
           globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
           cleanupOutdatedCaches: true,
           clientsClaim: true,
-          skipWaiting: true
+          skipWaiting: true,
         },
         devOptions: {
-          enabled: true
+          enabled: true,
         },
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
@@ -42,16 +42,16 @@ export default defineConfig(({ mode }) => {
             {
               src: 'icon-dark.png',
               sizes: '192x192',
-              type: 'image/png'
+              type: 'image/png',
             },
             {
               src: 'icon-dark.png',
               sizes: '512x512',
-              type: 'image/png'
-            }
-          ]
-        }
-      })
+              type: 'image/png',
+            },
+          ],
+        },
+      }),
     ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),

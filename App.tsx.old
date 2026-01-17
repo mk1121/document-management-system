@@ -1,5 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X, Plus, RefreshCw } from 'lucide-react';
+import {
+  Camera,
+  Trash2,
+  MoveLeft,
+  MoveRight,
+  Save,
+  Eye,
+  ImageIcon,
+  Search,
+  Upload,
+  X,
+  Plus,
+  RefreshCw,
+} from 'lucide-react';
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { DocMaster, DocDetail, ViewMode, Doctor, OnlinePatient, OnlinePatientImage } from './types';
@@ -57,7 +70,7 @@ const getCroppedImg = async (image: HTMLImageElement, crop: PixelCrop): Promise<
     0,
     0,
     crop.width,
-    crop.height
+    crop.height,
   );
 
   return new Promise((resolve) => {
@@ -70,34 +83,42 @@ const getCroppedImg = async (image: HTMLImageElement, crop: PixelCrop): Promise<
 
 // --- COMPONENTS ---
 
-const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, loading, imgRef }: any) => {
+const CropDialog = ({
+  src,
+  onCrop,
+  onCancel,
+  crop,
+  setCrop,
+  onCropComplete,
+  loading,
+  imgRef,
+}: any) => {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[85vh]">
-        <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Crop Image</h3>
-          <button onClick={onCancel} className="p-2 text-gray-400 hover:text-red-500 transition-colors">
+    <div className='fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in'>
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col h-[85vh]'>
+        <div className='p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50'>
+          <h3 className='text-lg font-bold text-gray-900 dark:text-white'>Crop Image</h3>
+          <button
+            onClick={onCancel}
+            className='p-2 text-gray-400 hover:text-red-500 transition-colors'
+          >
             <X size={24} />
           </button>
         </div>
 
-        <div className="flex-1 relative bg-gray-200 dark:bg-black overflow-auto flex items-center justify-center p-4">
-          <ReactCrop
-            crop={crop}
-            onChange={(c) => setCrop(c)}
-            onComplete={(c) => onCropComplete(c)}
-          >
+        <div className='flex-1 relative bg-gray-200 dark:bg-black overflow-auto flex items-center justify-center p-4'>
+          <ReactCrop crop={crop} onChange={(c) => setCrop(c)} onComplete={(c) => onCropComplete(c)}>
             <img
               ref={imgRef}
               src={src}
-              alt="Crop target"
-              className="max-h-[60vh] object-contain"
+              alt='Crop target'
+              className='max-h-[60vh] object-contain'
               onLoad={(e) => {
                 const { width, height } = e.currentTarget;
                 const initialCrop = centerCrop(
                   makeAspectCrop({ unit: '%', width: 90 }, undefined, width, height),
                   width,
-                  height
+                  height,
                 );
                 setCrop(initialCrop);
                 onCropComplete(initialCrop);
@@ -106,24 +127,26 @@ const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, load
           </ReactCrop>
         </div>
 
-        <div className="p-6 bg-gray-50 dark:bg-gray-900/50 border-t dark:border-gray-700">
-          <div className="flex gap-4">
+        <div className='p-6 bg-gray-50 dark:bg-gray-900/50 border-t dark:border-gray-700'>
+          <div className='flex gap-4'>
             <button
               onClick={onCancel}
-              className="flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className='flex-1 py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors'
             >
               Cancel
             </button>
             <button
               onClick={onCrop}
               disabled={loading}
-              className="flex-1 py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className='flex-1 py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2'
             >
-              {loading && <RefreshCw className="animate-spin" size={18} />}
+              {loading && <RefreshCw className='animate-spin' size={18} />}
               {loading ? 'Applying...' : 'Apply Crop'}
             </button>
           </div>
-          <p className="text-[10px] text-gray-400 mt-3 text-center">Drag corners or edges to adjust the crop area.</p>
+          <p className='text-[10px] text-gray-400 mt-3 text-center'>
+            Drag corners or edges to adjust the crop area.
+          </p>
         </div>
       </div>
     </div>
@@ -132,45 +155,48 @@ const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, load
 
 const ImageOptionsDialog = ({ src, onCrop, onSave, onCancel, loading }: any) => {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col">
-        <div className="p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50">
-          <h3 className="text-lg font-bold text-gray-900 dark:text-white">Image Options</h3>
-          <button onClick={onCancel} disabled={loading} className="p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50">
+    <div className='fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4 animate-fade-in'>
+      <div className='bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden flex flex-col'>
+        <div className='p-4 border-b dark:border-gray-700 flex justify-between items-center bg-gray-50 dark:bg-gray-900/50'>
+          <h3 className='text-lg font-bold text-gray-900 dark:text-white'>Image Options</h3>
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className='p-2 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50'
+          >
             <X size={24} />
           </button>
         </div>
 
-        <div className="p-4 flex flex-col items-center">
-          <div className="w-full aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 mb-6">
-            <img src={src} alt="Preview" className="w-full h-full object-contain" />
+        <div className='p-4 flex flex-col items-center'>
+          <div className='w-full aspect-[4/3] rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-900 border dark:border-gray-700 mb-6'>
+            <img src={src} alt='Preview' className='w-full h-full object-contain' />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 w-full">
+          <div className='grid grid-cols-1 gap-3 w-full'>
             <button
               onClick={onCrop}
               disabled={loading}
-              className="w-full py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed"
+              className='w-full py-3 px-4 bg-oracle-600 text-white rounded-xl font-bold hover:bg-oracle-700 shadow-lg shadow-oracle-600/20 transition-all flex items-center justify-center gap-2 group disabled:opacity-50 disabled:cursor-not-allowed'
             >
-              <RefreshCw className="group-hover:rotate-180 transition-transform duration-500" size={18} />
+              <RefreshCw
+                className='group-hover:rotate-180 transition-transform duration-500'
+                size={18}
+              />
               Crop Image
             </button>
             <button
               onClick={onSave}
               disabled={loading}
-              className="w-full py-3 px-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className='w-full py-3 px-4 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed'
             >
-              {loading ? (
-                <RefreshCw className="animate-spin" size={18} />
-              ) : (
-                <Save size={18} />
-              )}
+              {loading ? <RefreshCw className='animate-spin' size={18} /> : <Save size={18} />}
               {loading ? 'Processing...' : 'Save Original'}
             </button>
             <button
               onClick={onCancel}
               disabled={loading}
-              className="w-full py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              className='w-full py-3 px-4 border border-gray-300 dark:border-gray-600 rounded-xl text-gray-700 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors mt-2 disabled:opacity-50 disabled:cursor-not-allowed'
             >
               Cancel
             </button>
@@ -184,26 +210,26 @@ const ImageOptionsDialog = ({ src, onCrop, onSave, onCancel, loading }: any) => 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={`bg-gray-200 dark:bg-gray-700 animate-pulse rounded ${className}`}>
     {/* Shimmer effect for skeleton loading - Reduced opacity for better dark mode UI */}
-    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer" />
+    <div className='absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-shimmer' />
   </div>
 );
 
 const OnlineImageCard = ({ img }: { img: OnlinePatientImage }) => {
   const [loaded, setLoaded] = useState(false);
   return (
-    <div className="group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-transparent transition-all shadow-sm">
-      {!loaded && <Skeleton className="absolute inset-0 z-10" />}
+    <div className='group relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border-2 border-transparent transition-all shadow-sm'>
+      {!loaded && <Skeleton className='absolute inset-0 z-10' />}
       <img
         src={img.data}
         alt={`Page ${img.sequence}`}
         className={`w-full h-full object-cover transition-opacity duration-300 ${loaded ? 'opacity-100' : 'opacity-0'}`}
         onLoad={() => setLoaded(true)}
       />
-      <div className="absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-md p-2 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-        <div className="flex justify-between items-center">
-          <span className="text-white text-xs font-medium">Page {img.sequence}</span>
+      <div className='absolute inset-x-0 bottom-0 bg-black/60 backdrop-blur-md p-2 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300'>
+        <div className='flex justify-between items-center'>
+          <span className='text-white text-xs font-medium'>Page {img.sequence}</span>
           {img.nextApp && (
-            <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
+            <span className='bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold'>
               {img.nextApp}
             </span>
           )}
@@ -242,8 +268,8 @@ export default function App() {
     address: '',
     doctorName: '',
     // New Fields
-    branchName: 'FD1',          // Default FD1
-    patientType: 'General',     // Default General
+    branchName: 'FD1', // Default FD1
+    patientType: 'General', // Default General
     appDate: new Date().toISOString().split('T')[0], // Default Today
     po: '',
     ps: '',
@@ -254,7 +280,9 @@ export default function App() {
   });
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [images, setImages] = useState<{ id: string; url: string; file?: File; nextApp?: string }[]>([]);
+  const [images, setImages] = useState<
+    { id: string; url: string; file?: File; nextApp?: string }[]
+  >([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -300,21 +328,20 @@ export default function App() {
     // Fallback or Forced: Fetch from API
 
     fetch(`${API_BASE_URL}/api/v1/doctors`)
-      .then(res => {
+      .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then(data => {
+      .then((data) => {
         if (Array.isArray(data)) {
-
           setDoctors(data);
           localStorage.setItem('cached_doctors', JSON.stringify(data));
         } else {
           console.error('Invalid data format', data);
         }
       })
-      .catch(err => {
-        console.error("Doctor fetch error:", err);
+      .catch((err) => {
+        console.error('Doctor fetch error:', err);
         // Optional: showToast('Failed to load doctors', 'error');
       });
   };
@@ -328,7 +355,9 @@ export default function App() {
     setSelectedOnlinePatient(null);
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/patients/search?q=${encodeURIComponent(searchQuery)}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/patients/search?q=${encodeURIComponent(searchQuery)}`,
+      );
       if (!res.ok) throw new Error('Search failed');
       const data = await res.json();
       setSearchResults(data);
@@ -344,13 +373,15 @@ export default function App() {
     setLoadingImages(true);
     try {
       // Add timestamp to prevent caching
-      const res = await fetch(`${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`);
+      const res = await fetch(
+        `${API_BASE_URL}/api/v1/patients/${patientId}/images?t=${Date.now()}`,
+      );
       if (!res.ok) throw new Error('Failed to load images');
       const data = await res.json();
       // Map API response to internal type if needed, but data check
       const mapped = data.map((img: any) => ({
         ...img,
-        nextApp: img.nextApp || '' // Ensure nextApp is set
+        nextApp: img.nextApp || '', // Ensure nextApp is set
       }));
       setOnlineImages(mapped);
     } catch (err) {
@@ -385,21 +416,24 @@ export default function App() {
           body: JSON.stringify({
             data: base64,
             mimeType: mimeType,
-            username: username
-          })
+            username: username,
+          }),
         });
         if (!res.ok) throw new Error('Update failed');
         showToast('Image updated successfully', 'success');
       } else {
         // Add new image
-        const res = await fetch(`${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            images: [{ data: base64, mimeType: mimeType }],
-            username: username
-          })
-        });
+        const res = await fetch(
+          `${API_BASE_URL}/api/v1/patients/${selectedOnlinePatient.id}/images`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              images: [{ data: base64, mimeType: mimeType }],
+              username: username,
+            }),
+          },
+        );
         if (!res.ok) throw new Error('Upload failed');
         showToast('Image added successfully', 'success');
       }
@@ -485,8 +519,7 @@ export default function App() {
       setDocList(docs);
       setTotalDocs(total);
       setPage(pageNum);
-    } catch (e) {
-    }
+    } catch (e) {}
   };
 
   useEffect(() => {
@@ -505,7 +538,10 @@ export default function App() {
 
       // Theme
       const savedTheme = localStorage.getItem('theme');
-      if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      if (
+        savedTheme === 'dark' ||
+        (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
+      ) {
         setDarkMode(true);
       }
 
@@ -609,12 +645,14 @@ export default function App() {
         address: doc.address || '',
         doctorName: doc.doctorName || '', // [NEW]
       });
-      setImages(details.map(d => ({
-        id: d.id,
-        url: d.imageData,
-        // file object is lost, but we only need it for upload, and we have base64
-        // If we edit images, we might add new Files or re-use existing URLs.
-      })));
+      setImages(
+        details.map((d) => ({
+          id: d.id,
+          url: d.imageData,
+          // file object is lost, but we only need it for upload, and we have base64
+          // If we edit images, we might add new Files or re-use existing URLs.
+        })),
+      );
       setEditingId(doc.id);
       setViewMode('form');
     } catch (e) {
@@ -674,7 +712,7 @@ export default function App() {
 
       if (editingId) {
         await DB.updateDocument(master, details, username);
-        showToast("Document Updated Locally!", 'success');
+        showToast('Document Updated Locally!', 'success');
         setEditingId(null);
       } else {
         await DB.saveDocument(master, details, username);
@@ -682,7 +720,15 @@ export default function App() {
       }
 
       // Success
-      setFormData({ name: '', gender: 'Male', dob: '', age: 0, phone: '', address: '', doctorName: '' });
+      setFormData({
+        name: '',
+        gender: 'Male',
+        dob: '',
+        age: 0,
+        phone: '',
+        address: '',
+        doctorName: '',
+      });
       setImages([]);
       refreshCounts();
 
@@ -765,21 +811,15 @@ export default function App() {
         // Invalidate Cache after successful sync
         localStorage.removeItem('cached_doctors');
 
-
         try {
-          await Promise.all([
-            refreshCounts(),
-            loadDocs(1)
-          ]);
+          await Promise.all([refreshCounts(), loadDocs(1)]);
         } catch (e) {
-          console.error("Failed to refresh counts or load docs after sync:", e);
+          console.error('Failed to refresh counts or load docs after sync:', e);
         }
 
         // Force fetch on reload to ensure fresh data
         fetchDoctors(true);
         // Use setTimeout to allow the process to finish before refetching, or just let next reload handle it.
-
-
       } catch (docErr: any) {
         console.error(`Failed to sync doc ${doc.id}:`, docErr);
         // Explicitly mark as failed so it can be retried later
@@ -860,7 +900,14 @@ export default function App() {
   // --- RENDER ---
 
   if (!isLoggedIn) {
-    return <Login onLogin={(user) => { setIsLoggedIn(true); setUsername(user); }} />;
+    return (
+      <Login
+        onLogin={(user) => {
+          setIsLoggedIn(true);
+          setUsername(user);
+        }}
+      />
+    );
   }
 
   return (
@@ -913,29 +960,29 @@ export default function App() {
                 />
 
                 <div className='sm:col-span-1'>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
                     Gender
                   </label>
                   <select
                     value={formData.gender}
                     onChange={(e: any) => setFormData({ ...formData, gender: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm'
                   >
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value='Male'>Male</option>
+                    <option value='Female'>Female</option>
+                    <option value='Other'>Other</option>
                   </select>
                 </div>
 
                 <div className='sm:col-span-1'>
                   <FormField
-                    label="Age"
-                    type="text"
+                    label='Age'
+                    type='text'
                     value={formData.age}
                     //@ts-ignore
                     readOnly={true}
                     disabled={true}
-                    placeholder="Auto-calculated"
+                    placeholder='Auto-calculated'
                   />
                 </div>
 
@@ -948,7 +995,7 @@ export default function App() {
                     required
                     options={[
                       { label: 'Panchlaish', value: 'FD1' },
-                      { label: 'Khulshi', value: 'FD2' }
+                      { label: 'Khulshi', value: 'FD2' },
                     ]}
                   />
                 </div>
@@ -963,7 +1010,7 @@ export default function App() {
                     options={[
                       { label: 'General', value: 'General' },
                       { label: 'Orth', value: 'Orth' },
-                      { label: 'Surgery', value: 'Surgery' }
+                      { label: 'Surgery', value: 'Surgery' },
                     ]}
                   />
                 </div>
@@ -982,57 +1029,63 @@ export default function App() {
                     label='Age (Years)'
                     type='number'
                     value={formData.age.toString()}
-                    onChange={(e: any) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
+                    onChange={(e: any) =>
+                      setFormData({ ...formData, age: parseInt(e.target.value) || 0 })
+                    }
                     disabled={true}
-                    placeholder="Auto-calculated"
+                    placeholder='Auto-calculated'
                   />
                 </div>
 
                 <div className='sm:col-span-2'>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1'>
                     Address
                   </label>
                   <textarea
                     value={formData.address}
                     onChange={(e: any) => setFormData({ ...formData, address: e.target.value })}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm mb-4"
+                    className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm mb-4'
                   />
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className='grid grid-cols-3 gap-4'>
                     <FormField
                       label='PO'
                       value={formData.po}
                       onChange={(e: any) => setFormData({ ...formData, po: e.target.value })}
-                      placeholder="Post Office"
+                      placeholder='Post Office'
                     />
                     <FormField
                       label='PS'
                       value={formData.ps}
                       onChange={(e: any) => setFormData({ ...formData, ps: e.target.value })}
-                      placeholder="Police Station"
+                      placeholder='Police Station'
                     />
                     <FormField
                       label='District'
                       value={formData.dist}
                       onChange={(e: any) => setFormData({ ...formData, dist: e.target.value })}
-                      placeholder="District"
+                      placeholder='District'
                     />
                   </div>
                 </div>
 
                 <div className='sm:col-span-2'>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className='grid grid-cols-1 sm:grid-cols-2 gap-4'>
                     <FormField
                       label='Emergency Contact Person'
                       value={formData.emgContactPerson}
-                      onChange={(e: any) => setFormData({ ...formData, emgContactPerson: e.target.value })}
-                      placeholder="Name"
+                      onChange={(e: any) =>
+                        setFormData({ ...formData, emgContactPerson: e.target.value })
+                      }
+                      placeholder='Name'
                     />
                     <FormField
                       label='Emergency Contact No'
                       value={formData.emgContactNo}
-                      onChange={(e: any) => setFormData({ ...formData, emgContactNo: e.target.value })}
-                      placeholder="Phone Number"
+                      onChange={(e: any) =>
+                        setFormData({ ...formData, emgContactNo: e.target.value })
+                      }
+                      placeholder='Phone Number'
                     />
                   </div>
                 </div>
@@ -1042,10 +1095,9 @@ export default function App() {
                     label='Referred By'
                     value={formData.refBy}
                     onChange={(e: any) => setFormData({ ...formData, refBy: e.target.value })}
-                    placeholder="Referral Name (Optional)"
+                    placeholder='Referral Name (Optional)'
                   />
                 </div>
-
 
                 <div className='sm:col-span-2'>
                   <FormField
@@ -1055,7 +1107,7 @@ export default function App() {
                     onChange={(e: any) => setFormData({ ...formData, doctorName: e.target.value })}
                     placeholder='Select Doctor'
                     required
-                    options={doctors.map(d => ({ label: d.name, value: d.name }))}
+                    options={doctors.map((d) => ({ label: d.name, value: d.name }))}
                   />
                 </div>
               </div>
@@ -1070,10 +1122,8 @@ export default function App() {
 
                   <div className='flex flex-wrap gap-4 mb-4'>
                     {images.map((img, index) => (
-                      <div key={img.id} className="flex flex-col gap-1.5">
-                        <div
-                          className='relative group w-48 h-60 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
-                        >
+                      <div key={img.id} className='flex flex-col gap-1.5'>
+                        <div className='relative group w-48 h-60 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'>
                           <img
                             src={img.url}
                             alt={`Doc ${index + 1}`}
@@ -1116,17 +1166,19 @@ export default function App() {
                           </div>
                         </div>
                         {/* Per-Image Date Picker */}
-                        <div className="flex flex-col">
-                          <label className="text-[10px] text-gray-500 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                        <div className='flex flex-col'>
+                          <label className='text-[10px] text-gray-500 font-medium mb-0.5 ml-0.5'>
+                            Next App Date:
+                          </label>
                           <input
-                            type="date"
+                            type='date'
                             value={img.nextApp || ''}
                             onChange={(e) => {
                               const newImages = [...images];
                               newImages[index].nextApp = e.target.value;
                               setImages(newImages);
                             }}
-                            className="w-48 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                            className='w-48 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500'
                           />
                         </div>
                       </div>
@@ -1148,7 +1200,10 @@ export default function App() {
                       {/* File Upload Button */}
                       <label className='w-32 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
                         <div className='flex flex-col items-center text-center p-1'>
-                          <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={24} />
+                          <ImageIcon
+                            className='text-gray-500 dark:text-gray-400 mb-0.5'
+                            size={24}
+                          />
                           <span className='text-xs text-gray-500 dark:text-gray-400'>File</span>
                         </div>
                         <input
@@ -1174,7 +1229,8 @@ export default function App() {
                     <>Processing...</>
                   ) : (
                     <>
-                      <Save size={18} className='mr-2' /> {editingId ? 'Update Document' : 'Save to Local Storage'}
+                      <Save size={18} className='mr-2' />{' '}
+                      {editingId ? 'Update Document' : 'Save to Local Storage'}
                     </>
                   )}
                 </button>
@@ -1185,20 +1241,20 @@ export default function App() {
           <div className='max-w-4xl mx-auto'>
             {/* Search Bar */}
             <div className='bg-white dark:bg-gray-800 shadow rounded-lg p-6 mb-6'>
-              <form onSubmit={handleSearch} className="flex gap-4">
-                <div className="flex-1">
+              <form onSubmit={handleSearch} className='flex gap-4'>
+                <div className='flex-1'>
                   <input
-                    type="text"
+                    type='text'
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by ID, Name, Phone, Address, Branch..."
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    placeholder='Search by ID, Name, Phone, Address, Branch...'
+                    className='w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white'
                   />
                 </div>
                 <button
-                  type="submit"
+                  type='submit'
                   disabled={isSearching}
-                  className="px-6 py-2 bg-oracle-600 text-white rounded-md hover:bg-oracle-700 disabled:opacity-50"
+                  className='px-6 py-2 bg-oracle-600 text-white rounded-md hover:bg-oracle-700 disabled:opacity-50'
                 >
                   {isSearching ? 'Search...' : 'Search'}
                 </button>
@@ -1207,55 +1263,71 @@ export default function App() {
 
             {selectedOnlinePatient ? (
               <div className='bg-white dark:bg-gray-800 shadow rounded-lg p-6 animate-fade-in'>
-                <div className="flex justify-between items-start mb-6 border-b dark:border-gray-700 pb-4">
+                <div className='flex justify-between items-start mb-6 border-b dark:border-gray-700 pb-4'>
                   <div>
-                    <h2 className="text-xl font-bold text-gray-900 dark:text-white">{selectedOnlinePatient.name}</h2>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      ID: <span className="font-mono">{selectedOnlinePatient.id}</span> | Phone: {selectedOnlinePatient.phone}
+                    <h2 className='text-xl font-bold text-gray-900 dark:text-white'>
+                      {selectedOnlinePatient.name}
+                    </h2>
+                    <div className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
+                      ID: <span className='font-mono'>{selectedOnlinePatient.id}</span> | Phone:{' '}
+                      {selectedOnlinePatient.phone}
                     </div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Age: {selectedOnlinePatient.age} | Gender: {selectedOnlinePatient.gender} | Doctor: {selectedOnlinePatient.doctorName}
+                    <div className='text-sm text-gray-500 dark:text-gray-400 mt-1'>
+                      Age: {selectedOnlinePatient.age} | Gender: {selectedOnlinePatient.gender} |
+                      Doctor: {selectedOnlinePatient.doctorName}
                     </div>
                   </div>
                   <button
                     onClick={() => setSelectedOnlinePatient(null)}
-                    className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
+                    className='p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
                   >
                     <X size={24} />
                   </button>
                 </div>
 
                 {/* Images */}
-                <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Patient Documents</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8">
+                <h3 className='text-lg font-medium text-gray-900 dark:text-white mb-4'>
+                  Patient Documents
+                </h3>
+                <div className='grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-8'>
                   {loadingImages ? (
-                    Array(4).fill(0).map((_, i) => (
-                      <div key={i} className="aspect-[3/4] relative">
-                        <Skeleton className="absolute inset-0 rounded-xl" />
-                      </div>
-                    ))
+                    Array(4)
+                      .fill(0)
+                      .map((_, i) => (
+                        <div key={i} className='aspect-[3/4] relative'>
+                          <Skeleton className='absolute inset-0 rounded-xl' />
+                        </div>
+                      ))
                   ) : onlineImages.length > 0 ? (
                     onlineImages.map((img) => (
-                      <div key={img.fileId} className="flex flex-col gap-1.5">
-                        <div className="cursor-pointer" onClick={() => setPreviewImage(img.data)}>
+                      <div key={img.fileId} className='flex flex-col gap-1.5'>
+                        <div className='cursor-pointer' onClick={() => setPreviewImage(img.data)}>
                           <OnlineImageCard img={img} />
                         </div>
                         {/* Per-Image Date Picker */}
-                        <div className="flex flex-col mt-0.5">
-                          <label className="text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                        <div className='flex flex-col mt-0.5'>
+                          <label className='text-[10px] text-gray-500 dark:text-gray-400 font-medium mb-0.5 ml-0.5'>
+                            Next App Date:
+                          </label>
                           <input
-                            type="date"
+                            type='date'
                             defaultValue={img.nextApp || ''}
                             onBlur={async (e) => {
                               const newDate = e.target.value;
                               if (newDate === img.nextApp) return;
                               try {
                                 showToast('Updating date...', 'success');
-                                const res = await fetch(`${API_BASE_URL}/api/v1/images/${img.fileId}`, {
-                                  method: 'PUT',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ nextApp: newDate || null, username: username })
-                                });
+                                const res = await fetch(
+                                  `${API_BASE_URL}/api/v1/images/${img.fileId}`,
+                                  {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                      nextApp: newDate || null,
+                                      username: username,
+                                    }),
+                                  },
+                                );
                                 if (!res.ok) throw new Error('Update failed');
                                 showToast('Date updated', 'success');
                               } catch (err) {
@@ -1263,15 +1335,20 @@ export default function App() {
                                 showToast('Failed to update date', 'error');
                               }
                             }}
-                            className="w-full text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                            className='w-full text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500'
                           />
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="col-span-full py-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed dark:border-gray-700">
-                      <ImageIcon className="mx-auto text-gray-300 dark:text-gray-600 mb-2" size={48} />
-                      <p className="text-gray-500 dark:text-gray-400">No documents found for this patient.</p>
+                    <div className='col-span-full py-12 text-center bg-gray-50 dark:bg-gray-800/50 rounded-2xl border-2 border-dashed dark:border-gray-700'>
+                      <ImageIcon
+                        className='mx-auto text-gray-300 dark:text-gray-600 mb-2'
+                        size={48}
+                      />
+                      <p className='text-gray-500 dark:text-gray-400'>
+                        No documents found for this patient.
+                      </p>
                     </div>
                   )}
                 </div>
@@ -1284,7 +1361,9 @@ export default function App() {
                       className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
                     >
                       <Plus className='text-oracle-600 mb-1' size={32} />
-                      <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
+                      <span className='font-bold text-gray-800 dark:text-gray-100'>
+                        Add New Image
+                      </span>
                     </button>
                     <button
                       onClick={() => {
@@ -1297,7 +1376,9 @@ export default function App() {
                       className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
                     >
                       <RefreshCw className='text-orange-600 mb-1' size={32} />
-                      <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
+                      <span className='font-bold text-gray-800 dark:text-gray-100'>
+                        Update Last Image
+                      </span>
                     </button>
                   </div>
                 ) : (
@@ -1320,16 +1401,22 @@ export default function App() {
                         className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
                       >
                         <Camera className='text-oracle-600 mb-1' size={28} />
-                        <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>Camera</span>
+                        <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>
+                          Camera
+                        </span>
                       </button>
 
-                      <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <ImageIcon className="text-gray-400 mb-1" size={28} />
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                      <label
+                        className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}
+                      >
+                        <ImageIcon className='text-gray-400 mb-1' size={28} />
+                        <span className='text-sm text-gray-500 dark:text-gray-400 font-medium'>
+                          Upload File
+                        </span>
                         <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
+                          type='file'
+                          accept='image/*'
+                          className='hidden'
                           onChange={handleOnlineImageUpload}
                           disabled={uploadingImage}
                         />
@@ -1339,47 +1426,56 @@ export default function App() {
                 )}
               </div>
             ) : isSearching ? (
-              <div className="flex flex-col gap-4">
-                {Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-100 dark:border-gray-700 flex justify-between items-center">
-                    <div className="flex-1 space-y-2">
-                      <Skeleton className="h-5 w-1/3" />
-                      <Skeleton className="h-4 w-1/2" />
+              <div className='flex flex-col gap-4'>
+                {Array(3)
+                  .fill(0)
+                  .map((_, i) => (
+                    <div
+                      key={i}
+                      className='bg-white dark:bg-gray-800 p-4 rounded-lg shadow border border-gray-100 dark:border-gray-700 flex justify-between items-center'
+                    >
+                      <div className='flex-1 space-y-2'>
+                        <Skeleton className='h-5 w-1/3' />
+                        <Skeleton className='h-4 w-1/2' />
+                      </div>
+                      <Skeleton className='h-4 w-20' />
                     </div>
-                    <Skeleton className="h-4 w-20" />
-                  </div>
-                ))}
+                  ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {searchResults.map(patient => (
+              <div className='grid grid-cols-1 gap-4'>
+                {searchResults.map((patient) => (
                   <div
                     key={patient.id}
                     onClick={() => handleSelectOnlinePatient(patient)}
-                    className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow hover:shadow-md cursor-pointer border border-transparent hover:border-oracle-300 transition-all flex justify-between items-center"
+                    className='bg-white dark:bg-gray-800 p-4 rounded-lg shadow hover:shadow-md cursor-pointer border border-transparent hover:border-oracle-300 transition-all flex justify-between items-center'
                   >
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white">{patient.name}</h3>
-                      <p className="text-sm text-gray-500 dark:text-gray-400">Phone: {patient.phone} | ID: {patient.id}</p>
+                      <h3 className='text-lg font-medium text-gray-900 dark:text-white'>
+                        {patient.name}
+                      </h3>
+                      <p className='text-sm text-gray-500 dark:text-gray-400'>
+                        Phone: {patient.phone} | ID: {patient.id}
+                      </p>
                     </div>
-                    <div className="text-right text-sm text-gray-500 dark:text-gray-400">
+                    <div className='text-right text-sm text-gray-500 dark:text-gray-400'>
                       {patient.doctorName}
                     </div>
                   </div>
                 ))}
                 {searchResults.length === 0 && searchQuery && !isSearching && (
-                  <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                  <div className='text-center py-12 text-gray-500 dark:text-gray-400'>
                     No patients found matching "{searchQuery}"
                   </div>
                 )}
                 {searchResults.length === 0 && !searchQuery && (
-                  <div className="text-center py-12 text-gray-400 dark:text-gray-500">
+                  <div className='text-center py-12 text-gray-400 dark:text-gray-500'>
                     Enter a name, phone number or ID to search.
                   </div>
                 )}
               </div>
             )}
-          </div >
+          </div>
         ) : (
           /* LIST VIEW */
           <div className='space-y-6'>
@@ -1421,21 +1517,17 @@ export default function App() {
             )}
           </div>
         )}
-      </main >
+      </main>
 
       {/* Full Screen Image Preview Modal with Zoom/Pan */}
-      {
-        previewImage && (
-          <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
-        )
-      }
+      {previewImage && (
+        <ImagePreviewModal src={previewImage} onClose={() => setPreviewImage(null)} />
+      )}
 
       {/* Camera Modal */}
-      {
-        showCamera && (
-          <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
-        )
-      }
+      {showCamera && (
+        <CameraModal onCapture={handleCameraCapture} onClose={() => setShowCamera(false)} />
+      )}
 
       {/* Selection Modal (Crop vs Save) */}
       {pendingImageUrl && !imageToCrop && (
@@ -1475,6 +1567,6 @@ export default function App() {
           }}
         />
       )}
-    </div >
+    </div>
   );
 }

@@ -47,7 +47,6 @@ app.get('/api/health', async (req, res) => {
   }
 });
 
-
 app.get('/api/v1/doctors', async (req, res) => {
   let connection;
   try {
@@ -55,7 +54,7 @@ app.get('/api/v1/doctors', async (req, res) => {
     const result = await connection.execute(
       `SELECT DR_ID, DR_NAME FROM DOCTOR_INFO ORDER BY DR_NAME ASC`,
       [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      { outFormat: oracledb.OUT_FORMAT_OBJECT },
     );
     // Transform to simple array
     const doctors = result.rows.map((row) => ({
@@ -148,8 +147,6 @@ app.post('/api/v1/documents/sync', async (req, res) => {
       id: { type: oracledb.STRING, dir: oracledb.BIND_OUT }, // Expect STRING ID from Trigger
     });
 
-
-
     // Extract the generated ID
     // Explicitly declaring to avoid ReferenceError
     const masterId = resultMaster.outBinds.id[0];
@@ -173,7 +170,7 @@ app.post('/api/v1/documents/sync', async (req, res) => {
         mime: att.mimeType,
         data: buffer,
         nextApp: att.nextApp || null, // [FIX] Use nextApp from attachment
-        userId: username || null // [NEW] Track creator
+        userId: username || null, // [NEW] Track creator
       });
     }
 
@@ -243,14 +240,14 @@ app.get('/api/v1/patients/search', async (req, res) => {
 
     const result = await connection.execute(sql, binds, { outFormat: oracledb.OUT_FORMAT_OBJECT });
 
-    const patients = result.rows.map(row => ({
+    const patients = result.rows.map((row) => ({
       id: row.PATIENT_ID,
       name: row.PATIENT_NAME,
       phone: row.CONTACT_NO,
       age: row.AGE,
       gender: row.GENDER,
       doctorName: row.DOCTOR_NAME,
-      dob: row.DOB_STR
+      dob: row.DOB_STR,
     }));
 
     res.json(patients);
@@ -259,7 +256,11 @@ app.get('/api/v1/patients/search', async (req, res) => {
     res.status(500).json({ message: 'Search failed', error: err.message });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
+      try {
+        await connection.close();
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
@@ -283,13 +284,15 @@ app.get('/api/v1/patients/:id/images', async (req, res) => {
         `;
 
     // Ensure PATIENT_DOC (column index 3) is fetched as Buffer
-    const result = await connection.execute(sql, { pid: id }, {
-      fetchInfo: {
-        PATIENT_DOC: { type: oracledb.BUFFER }
-      }
-    });
-
-
+    const result = await connection.execute(
+      sql,
+      { pid: id },
+      {
+        fetchInfo: {
+          PATIENT_DOC: { type: oracledb.BUFFER },
+        },
+      },
+    );
 
     // Process BLOBs
     const images = [];
@@ -325,18 +328,21 @@ app.get('/api/v1/patients/:id/images', async (req, res) => {
           sequence: seq,
           mimeType: mime,
           data: `data:${mime}; base64, ${data} `, // Frontend expects Full Data URL
-          nextApp: nextApp // [NEW]
+          nextApp: nextApp, // [NEW]
         });
       }
     }
     res.json(images);
-
   } catch (err) {
     console.error('Get Images Error:', err);
     res.status(500).json({ message: 'Failed to get images', error: err.message });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
+      try {
+        await connection.close();
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
@@ -352,15 +358,19 @@ app.delete('/api/v1/images/:fileId', async (req, res) => {
     await connection.execute(
       `DELETE FROM PATIENT_DOC_INFO WHERE FILE_ID = : fid`,
       { fid: fileId },
-      { autoCommit: true }
+      { autoCommit: true },
     );
     res.json({ message: 'Image deleted' });
   } catch (err) {
-    console.error("Delete Error", err);
+    console.error('Delete Error', err);
     res.status(500).json({ message: 'Delete failed' });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
+      try {
+        await connection.close();
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
@@ -388,7 +398,12 @@ app.put('/api/v1/images/:fileId', async (req, res) => {
             LAST_UPDATE_DATE = SYSDATE
         WHERE FILE_ID = :fid
       `;
-      binds = { data: buffer, mime: mimeType || 'image/png', userId: username || null, fid: fileId };
+      binds = {
+        data: buffer,
+        mime: mimeType || 'image/png',
+        userId: username || null,
+        fid: fileId,
+      };
     } else {
       // Metadata only update
       sql = `
@@ -404,11 +419,15 @@ app.put('/api/v1/images/:fileId', async (req, res) => {
     await connection.execute(sql, binds, { autoCommit: true });
     res.json({ message: 'Image updated successfully' });
   } catch (err) {
-    console.error("Update Image Error", err);
+    console.error('Update Image Error', err);
     res.status(500).json({ message: 'Update failed', error: err.message });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
+      try {
+        await connection.close();
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
@@ -431,7 +450,7 @@ app.post('/api/v1/patients/:id/images', async (req, res) => {
     // Get current max sequence
     const seqRes = await connection.execute(
       `SELECT MAX(SEQUENCE_NO) FROM PATIENT_DOC_INFO WHERE PATIENT_ID = : pid`,
-      { pid: id }
+      { pid: id },
     );
     let maxSeq = seqRes.rows[0][0] || 0;
 
@@ -450,27 +469,30 @@ app.post('/api/v1/patients/:id/images', async (req, res) => {
         seq: maxSeq,
         mime: img.mimeType || 'image/png',
         data: buffer,
-        userId: username || null
+        userId: username || null,
       });
     }
 
     await connection.commit();
     res.json({ message: 'Images added successfully', count: images.length });
-
   } catch (err) {
     console.error('Add Images Error:', err);
     res.status(500).json({ message: 'Failed to add images', error: err.message });
   } finally {
     if (connection) {
-      try { await connection.close(); } catch (e) { console.error(e); }
+      try {
+        await connection.close();
+      } catch (e) {
+        console.error(e);
+      }
     }
   }
 });
 
 // -----------------------------------------------------------------------------
-// POST /api/v1/login
+// POST /api/v1/auth/login
 // -----------------------------------------------------------------------------
-app.post('/api/v1/login', async (req, res) => {
+app.post('/api/v1/auth/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) {
     return res.status(400).json({ success: false, message: 'Username and password required' });
@@ -488,8 +510,8 @@ app.post('/api/v1/login', async (req, res) => {
       {
         u: username,
         p: password,
-        ret: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER }
-      }
+        ret: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
+      },
     );
 
     const isValid = result.outBinds.ret === 1;

@@ -65,7 +65,9 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
         console.error('Camera Error:', err);
         if (mounted) {
           let msg = 'Could not access camera.';
-          if (err.message === 'Camera API not available. This feature requires HTTPS or localhost.') {
+          if (
+            err.message === 'Camera API not available. This feature requires HTTPS or localhost.'
+          ) {
             msg = err.message;
           } else if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
             msg = 'Camera permission denied. Please allow access in browser settings.';
@@ -156,7 +158,8 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
               <p className='text-sm opacity-90 mb-4'>{error}</p>
 
               <div className='text-xs bg-white/10 p-2 rounded'>
-                <strong>Tip:</strong> You can upload an existing photo using the "File" button instead.
+                <strong>Tip:</strong> You can upload an existing photo using the "File" button
+                instead.
               </div>
             </div>
             <button
@@ -184,10 +187,11 @@ export const CameraModal: React.FC<CameraModalProps> = ({ onCapture, onClose }) 
           {supportsFlash && (
             <button
               onClick={toggleFlash}
-              className={`p-2 rounded-full backdrop-blur-md transition-all ${flashOn
-                ? 'bg-yellow-500/20 text-yellow-300'
-                : 'bg-black/30 text-white hover:bg-black/50'
-                }`}
+              className={`p-2 rounded-full backdrop-blur-md transition-all ${
+                flashOn
+                  ? 'bg-yellow-500/20 text-yellow-300'
+                  : 'bg-black/30 text-white hover:bg-black/50'
+              }`}
               title='Toggle Flash'
             >
               {flashOn ? <Zap size={24} fill='currentColor' /> : <ZapOff size={24} />}
