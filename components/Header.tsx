@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Camera,
   PlusCircle,
   List,
   RefreshCw,
@@ -120,7 +119,7 @@ export const Header: React.FC<HeaderProps> = ({
             {deferredPrompt && (
               <button
                 onClick={handleInstallClick}
-                className='hidden md:flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all text-white bg-blue-600 hover:bg-blue-700 shadow-sm animate-pulse'
+                className='hidden md:flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all text-white bg-gray-800 hover:bg-gray-900 shadow-sm animate-pulse'
                 title="Install Application"
               >
                 <Download size={18} className='mr-2' />
@@ -133,13 +132,13 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onSync}
               disabled={isSyncing || pendingCount === 0}
               className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${pendingCount > 0
-                ? 'text-oracle-600 bg-oracle-50 hover:bg-oracle-100 dark:bg-gray-700 dark:text-oracle-500'
-                : 'text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
+                ? 'text-gray-800 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-400'
+                : 'text-gray-300 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
                 }`}
             >
               <RefreshCw
                 size={18}
-                className={`${isSyncing && pendingCount > 0 ? 'animate-spin' : ''}`}
+                className={`${isSyncing && pendingCount > 0 ? 'animate-spin' : ''} text-gray-700 dark:text-gray-400`}
               />
               {/* Hide text on very small screens if needed, but count is important */}
               <span className='ml-2 font-bold'>
@@ -209,7 +208,7 @@ export const Header: React.FC<HeaderProps> = ({
             {deferredPrompt && (
               <button
                 onClick={() => { handleInstallClick(); setIsMenuOpen(false); }}
-                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400'
+                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-400'
               >
                 <span className='flex items-center'><Download size={18} className='mr-2' /> Install App</span>
               </button>

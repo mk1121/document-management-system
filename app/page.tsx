@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, Search, Upload, X, Plus, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, X, Plus, RefreshCw } from 'lucide-react';
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { DocMaster, DocDetail, ViewMode, Doctor, OnlinePatient, OnlinePatientImage } from '@/types';
@@ -97,7 +97,7 @@ const CropDialog = ({ src, onCrop, onCancel, crop, setCrop, onCropComplete, load
               onLoad={(e) => {
                 const { width, height } = e.currentTarget;
                 const initialCrop = centerCrop(
-                  makeAspectCrop({ unit: '%', width: 90 }, undefined, width, height),
+                  makeAspectCrop({ unit: '%', width: 90 }, width / height, width, height),
                   width,
                   height
                 );
@@ -218,7 +218,14 @@ const OnlineImageCard = ({ img }: { img: OnlinePatientImage }) => {
 // --- MAIN APP COMPONENT ---
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      return saved === 'dark';
+    }
+    return false;
+  });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('form');
@@ -293,7 +300,7 @@ export default function App() {
             setDoctors(parsed);
             return;
           }
-        } catch (e) {
+        } catch (_e) {
           // Cache parse error, proceed to fetch from API
         }
       }
@@ -487,7 +494,8 @@ export default function App() {
       setDocList(docs);
       setTotalDocs(total);
       setPage(pageNum);
-    } catch (e) {
+    } catch (_e) {
+      // Error handling for document loading
     }
   };
 
@@ -609,7 +617,16 @@ export default function App() {
         age: doc.age || 0,
         phone: doc.phone,
         address: doc.address || '',
-        doctorName: doc.doctorName || '', // [NEW]
+        doctorName: doc.doctorName || '',
+        branchName: doc.branchName || '',
+        patientType: doc.patientType || '',
+        appDate: doc.appDate || '',
+        po: doc.po || '',
+        ps: doc.ps || '',
+        dist: doc.dist || '',
+        emgContactPerson: doc.emgContactPerson || '',
+        emgContactNo: doc.emgContactNo || '',
+        refBy: doc.refBy || '',
       });
       setImages(details.map(d => ({
         id: d.id,
@@ -684,7 +701,7 @@ export default function App() {
       }
 
       // Success
-      setFormData({ name: '', gender: 'Male', dob: '', age: 0, phone: '', address: '', doctorName: '' });
+      setFormData({ name: '', gender: 'Male', dob: '', age: 0, phone: '', address: '', doctorName: '', branchName: '', patientType: '', appDate: '', po: '', ps: '', dist: '', emgContactPerson: '', emgContactNo: '', refBy: '' });
       setImages([]);
       refreshCounts();
 
@@ -933,10 +950,9 @@ export default function App() {
                   <FormField
                     label="Age"
                     type="text"
-                    value={formData.age}
-                    //@ts-ignore
+                    value={String(formData.age)}
+                    // @ts-expect-error FormField accepts readOnly prop
                     readOnly={true}
-                    disabled={true}
                     placeholder="Auto-calculated"
                   />
                 </div>
@@ -985,7 +1001,6 @@ export default function App() {
                     type='number'
                     value={formData.age.toString()}
                     onChange={(e: any) => setFormData({ ...formData, age: parseInt(e.target.value) || 0 })}
-                    disabled={true}
                     placeholder="Auto-calculated"
                   />
                 </div>
@@ -1091,7 +1106,7 @@ export default function App() {
                             <button
                               onClick={() => moveImage(index, 'up')}
                               disabled={index === 0}
-                              className='text-white hover:text-blue-300 disabled:opacity-30'
+                              className='text-white hover:text-gray-200 disabled:opacity-30'
                             >
                               <MoveLeft size={16} />
                             </button>
@@ -1104,7 +1119,7 @@ export default function App() {
                             <button
                               onClick={() => moveImage(index, 'down')}
                               disabled={index === images.length - 1}
-                              className='text-white hover:text-blue-300 disabled:opacity-30'
+                              className='text-white hover:text-gray-200 disabled:opacity-30'
                             >
                               <MoveRight size={16} />
                             </button>
@@ -1141,7 +1156,7 @@ export default function App() {
                         onClick={() => setShowCamera(true)}
                         className='w-32 h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
                       >
-                        <Camera className='text-oracle-600 mb-0.5' size={24} />
+                        <Camera className='text-gray-800 dark:text-gray-400 mb-0.5' size={24} />
                         <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
                           Camera
                         </span>
@@ -1170,7 +1185,7 @@ export default function App() {
                 <button
                   onClick={handleSave}
                   disabled={isProcessing}
-                  className='w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-oracle-600 hover:bg-oracle-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-oracle-500 disabled:opacity-70 disabled:cursor-not-allowed'
+                  className='w-full flex justify-center items-center py-3 px-4 border border-transparent rounded-md shadow-lg text-sm font-bold text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 dark:focus:ring-offset-gray-800 disabled:opacity-70 disabled:cursor-not-allowed transition-colors duration-200'
                 >
                   {isProcessing ? (
                     <>Processing...</>
@@ -1321,7 +1336,7 @@ export default function App() {
                         onClick={() => setShowCamera(true)}
                         className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
                       >
-                        <Camera className='text-oracle-600 mb-1' size={28} />
+                        <Camera className='text-gray-800 dark:text-gray-400 mb-1' size={28} />
                         <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>Camera</span>
                       </button>
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import oracledb from 'oracledb';
-import dbConfig from '@/backend/dbConfig';
+import dbConfig from '@/dbConfig';
 
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();

@@ -56,7 +56,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                   ? 'border-red-500'
                   : toast.type === 'warning'
                     ? 'border-yellow-500'
-                    : 'border-blue-500'
+                    : 'border-gray-500'
             }`}
             role='alert'
           >
@@ -68,7 +68,7 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
                     ? 'text-red-500 bg-red-100 dark:bg-red-800 dark:text-red-200'
                     : toast.type === 'warning'
                       ? 'text-yellow-500 bg-yellow-100 dark:bg-yellow-800 dark:text-yellow-200'
-                      : 'text-blue-500 bg-blue-100 dark:bg-blue-800 dark:text-blue-200'
+                      : 'text-gray-600 bg-gray-100 dark:bg-gray-800 dark:text-gray-200'
               }`}
             >
               {toast.type === 'success' && <CheckCircle size={20} />}

@@ -21,8 +21,8 @@ export const FormField: React.FC<FormFieldProps> = ({
   ...rest
 }) => {
 
-  const dateInputRef = useRef<HTMLInputElement>(null);
-  const textInputRef = useRef<HTMLInputElement>(null);
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
+  const textInputRef = useRef<HTMLInputElement | null>(null);
   const [displayValue, setDisplayValue] = useState(value);
 
   // Helper: ISO (YYYY-MM-DD) -> Display (DD/MM/YYYY)
@@ -59,17 +59,14 @@ export const FormField: React.FC<FormFieldProps> = ({
       const formatted = formatToDisplay(value);
 
       if (document.activeElement !== textInputRef.current) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setDisplayValue(formatted);
       } else {
         const currentParsed = parseToISO(displayValue);
         if (currentParsed !== value) {
-          // eslint-disable-next-line react-hooks/set-state-in-effect
           setDisplayValue(formatted);
         }
       }
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDisplayValue(value);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -135,8 +132,8 @@ export const FormField: React.FC<FormFieldProps> = ({
       if ('showPicker' in dateInputRef.current) {
         (dateInputRef.current as any).showPicker();
       } else {
-        dateInputRef.current.focus();
-        dateInputRef.current.click();
+        (dateInputRef.current as HTMLInputElement).focus();
+        (dateInputRef.current as HTMLInputElement).click();
       }
     }
   };
@@ -150,12 +147,11 @@ export const FormField: React.FC<FormFieldProps> = ({
         <select
           value={value}
           onChange={(e) => onChange(e as any)}
-          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-oracle-500 focus:border-oracle-500 dark:bg-gray-700 dark:text-white sm:text-sm'
+          className='block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm'
         >
-          <option value="">{placeholder || 'Select an option'}</option>
-          {/* @ts-ignore */}
-          {(rest.options || []).map((opt) => (
-            <option key={opt.value} value={opt.value}>
+          <option value="" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>{placeholder || 'Select an option'}</option>
+          {(rest.options || []).map((opt: any) => (
+            <option key={opt.value} value={opt.value} className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>
               {opt.label}
             </option>
           ))}
@@ -177,7 +173,7 @@ export const FormField: React.FC<FormFieldProps> = ({
           value={displayValue}
           onChange={handleTextChange}
           placeholder={type === 'date' ? 'DD/MM/YYYY' : placeholder}
-          className={`appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-oracle-500 focus:border-oracle-500 dark:bg-gray-700 dark:text-white sm:text-sm ${type === 'date' ? 'pr-10' : ''
+          className={`appearance-none block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm ${type === 'date' ? 'pr-10' : ''
             }`}
         />
         {type === 'date' && (

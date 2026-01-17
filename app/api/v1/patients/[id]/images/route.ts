@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import oracledb from 'oracledb';
-import dbConfig from '@/backend/dbConfig';
+import dbConfig from '@/dbConfig';
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

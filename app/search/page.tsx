@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, RefreshCw, Camera, ImageIcon } from 'lucide-react';
 import { OnlinePatient, OnlinePatientImage } from '@/types';
 import { useToast } from '@/components/Toast';
@@ -32,7 +32,14 @@ const OnlineImageCard: React.FC<OnlineImageCardProps> = ({ img }) => (
 );
 
 export default function SearchPage() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    // Initialize from localStorage if available
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      return saved === 'dark';
+    }
+    return false;
+  });
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<OnlinePatient[]>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -47,6 +54,18 @@ export default function SearchPage() {
   const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
 
   const { showToast } = useToast();
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+
+    if (darkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,8 +180,20 @@ export default function SearchPage() {
   };
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark' : ''} bg-gray-50 dark:bg-gray-900`}>
-      <Header viewMode='search' darkMode={darkMode} setDarkMode={setDarkMode} />
+    <div className='min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
+      <Header
+        viewMode='search'
+        setViewMode={() => {}}
+        darkMode={darkMode}
+        toggleTheme={() => setDarkMode(!darkMode)}
+        onSync={() => {}}
+        isSyncing={false}
+        pendingCount={0}
+        onRetryFailed={() => {}}
+        failedCount={0}
+        onClearData={() => {}}
+        syncStatus=""
+      />
 
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
         <div className='max-w-4xl mx-auto'>
@@ -327,7 +358,7 @@ export default function SearchPage() {
                       onClick={() => setShowCamera(true)}
                       className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
                     >
-                      <Camera className='text-oracle-600 mb-1' size={28} />
+                      <Camera className='text-gray-800 dark:text-gray-400 mb-1' size={28} />
                       <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>
                         Camera
                       </span>
@@ -423,7 +454,7 @@ export default function SearchPage() {
             <div className='flex gap-4'>
               <button
                 onClick={() => setUpdateMode('update')}
-                className='flex-1 py-2 bg-blue-600 text-white rounded hover:bg-blue-700'
+                className='flex-1 py-2 bg-gray-800 text-white rounded hover:bg-gray-900'
               >
                 Update
               </button>

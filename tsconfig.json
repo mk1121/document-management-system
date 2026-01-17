@@ -46,6 +46,13 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "jest.config.js",
+    "index.tsx.old",
+    "index.html.old",
+    "App.tsx.old",
+    "page.tsx.backup"
   ]
 }

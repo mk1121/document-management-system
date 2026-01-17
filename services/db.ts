@@ -279,3 +279,66 @@ export const clearDatabase = async (username: string): Promise<void> => {
     };
   });
 };
+
+/**
+ * Retrieves a single document by ID from the Master store.
+ *
+ * @param {string} id - The UUID of the master document.
+ * @returns {Promise<DocMaster | undefined>} The document or undefined if not found.
+ */
+export const getDocMaster = async (id: string, username: string): Promise<DocMaster | undefined> => {
+  const db = await openDB(username);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([MASTER_STORE], 'readonly');
+    const store = transaction.objectStore(MASTER_STORE);
+    const request = store.get(id);
+
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+};
+
+/**
+ * Retrieves all image details for a specific master document.
+ * Alias for getDocumentDetails for backwards compatibility.
+ *
+ * @param {string} id - The UUID of the master document.
+ * @returns {Promise<DocDetail[]>} Array of image details sorted by sequence.
+ */
+export const getDocDetails = async (id: string, username: string): Promise<DocDetail[]> => {
+  return getDocumentDetails(id, username);
+};
+
+/**
+ * Saves a single DocMaster record.
+ *
+ * @param {DocMaster} master - The master document to save.
+ */
+export const saveDocMaster = async (master: DocMaster, username: string): Promise<void> => {
+  const db = await openDB(username);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([MASTER_STORE], 'readwrite');
+    const store = transaction.objectStore(MASTER_STORE);
+    store.put(master);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+/**
+ * Saves a single DocDetail record.
+ *
+ * @param {DocDetail} detail - The detail record to save.
+ */
+export const saveDocDetail = async (detail: DocDetail, username: string): Promise<void> => {
+  const db = await openDB(username);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([DETAIL_STORE], 'readwrite');
+    const store = transaction.objectStore(DETAIL_STORE);
+    store.put(detail);
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};

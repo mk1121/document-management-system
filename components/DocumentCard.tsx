@@ -14,7 +14,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
 
   useEffect(() => {
     // Load first image as thumbnail
-    DB.getDocumentDetails(doc.id).then((details) => {
+    DB.getDocumentDetails(doc.id, 'user').then((details) => {
       if (details.length > 0) {
         setThumbnail(details[0].imageData);
       }

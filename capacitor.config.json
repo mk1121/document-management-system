@@ -1,0 +1,27 @@
+{
+  "appId": "com.docudigitize.app",
+  "appName": "DocuDigitize Pro",
+  "webDir": ".next/static/pages",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "android": {
+    "buildOptions": {
+      "keystorePath": null,
+      "keystorePassword": null,
+      "keystoreAlias": null,
+      "keystoreAliasPassword": null,
+      "signingMethod": "jarsigner",
+      "androidGradleVersion": "8.1.0"
+    }
+  },
+  "plugins": {
+    "Camera": {
+      "permissions": [
+        "camera",
+        "photos"
+      ]
+    }
+  }
+}

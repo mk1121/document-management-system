@@ -84,7 +84,7 @@ export const ImagePreviewModal: React.FC<ImagePreviewModalProps> = ({ src, onClo
               setScale(1);
               setPosition({ x: 0, y: 0 });
             }}
-            className='text-white hover:text-blue-400 hover:bg-gray-700 p-2 rounded transition-colors'
+            className='text-white hover:text-gray-300 hover:bg-gray-700 p-2 rounded transition-colors'
             title='Reset View'
           >
             <RotateCcw size={20} />

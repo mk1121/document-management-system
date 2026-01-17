@@ -1,20 +1,81 @@
 {
-  "name": "DocuDigitize Pro",
+  "name": "DocuDigitize Pro - Document Digitization Platform",
   "short_name": "DocuDigitize",
-  "start_url": "./index.html",
+  "description": "Professional document digitization and management platform with offline-first capabilities",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
   "theme_color": "#c80000",
+  "prefer_related_applications": false,
+  "categories": ["productivity", "utilities"],
   "icons": [
     {
-      "src": "https://cdn.icon-icons.com/icons2/2699/PNG/512/camera_icon_167664.png",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "https://cdn.icon-icons.com/icons2/2699/PNG/512/camera_icon_167664.png",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-192x192-maskable.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512x512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot-540x720.png",
+      "sizes": "540x720",
+      "type": "image/png",
+      "form_factor": "narrow"
+    },
+    {
+      "src": "/screenshot-1280x720.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "New Document",
+      "short_name": "New Doc",
+      "description": "Create a new document entry",
+      "url": "/form",
+      "icons": [
+        {
+          "src": "/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Search Patients",
+      "short_name": "Search",
+      "description": "Search for existing patient records",
+      "url": "/search",
+      "icons": [
+        {
+          "src": "/icon-96x96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }

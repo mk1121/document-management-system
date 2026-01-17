@@ -138,3 +138,45 @@ dist-ssr
 *.sw?
 dev-dist
 .firefox_profile
+
+# Android / Capacitor
+android/
+ios/
+android/app/build/
+android/app/.gradle/
+android/.gradle/
+*.apk
+*.keystore
+*.jks
+gradle.properties
+local.properties
+
+# Bun
+bunfig.toml
+.bun
+
+# Environment
+.env.local
+.env.*.local
+.env.production.local
+
+# Build outputs
+dist/
+out/
+.next/
+
+# IDE
+*.iml
+*.iws
+
+# OS
+Thumbs.db
+
+# Temporary files
+*.tmp
+tmp/
+temp/
+
+# Logs from Capacitor/Gradle
+capacitor.log
+gradlew.log

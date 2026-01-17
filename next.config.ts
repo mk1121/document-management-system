@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
-const nextConfig: NextConfig = {
-  // পরিবর্তন: 'http://' বাদ দেওয়া হয়েছে
+const nextConfig: NextConfig = {  // output: 'export',  // Disabled for API routes to work with Capacitor
+  // পরিবর্তন: 'http://' বাদ দেওয়া হয়েছে
   allowedDevOrigins: [
     "localhost:3000",
     "192.168.1.154:3000" 

@@ -5,12 +5,11 @@ import tseslint from 'typescript-eslint';
 import nextPlugin from '@next/eslint-plugin-next';
 
 export default tseslint.config(
-  { ignores: ['dist', '.next'] },
+  { ignores: ['dist', '.next', 'node_modules', '.next/**', 'out/**'] },
   {
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
-      nextPlugin.configs.recommended,
     ],
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
@@ -19,11 +18,12 @@ export default tseslint.config(
     },
     plugins: {
       'react-hooks': reactHooks,
-      next: nextPlugin,
+      '@next/next': nextPlugin,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      '@typescript-eslint/no-explicit-any': 'warn',
+      ...nextPlugin.configs.recommended.rules,
+      '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         {
@@ -34,6 +34,10 @@ export default tseslint.config(
       ],
       // Disable prettier-as-lint errors; use Prettier separately
       'prettier/prettier': 'off',
+      // Next.js image optimization warnings can be suppressed for local dev
+      '@next/next/no-img-element': 'off',
+      // React hook exhaustive deps as warn instead of error
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
 );
