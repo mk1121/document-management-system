@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
+  Camera,
   PlusCircle,
   List,
   RefreshCw,
@@ -14,35 +15,25 @@ import {
 } from 'lucide-react';
 import { ViewMode } from '../types';
 
-type BIPEvent = Event & {
-  platforms: string[];
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
-  prompt(): Promise<void>;
-};
-
 interface HeaderProps {
   viewMode: ViewMode;
-  setViewMode?: (m: ViewMode) => void;
+  setViewMode: (m: ViewMode) => void;
   darkMode: boolean;
-  setDarkMode: (dark: boolean) => void;
-  onNewDocument?: () => void;
-  onSearch?: () => void;
-  onSync?: () => void;
-  isSyncing?: boolean;
-  pendingCount?: number;
-  onRetryFailed?: () => void;
-  failedCount?: number;
-  onClearData?: () => void;
-  syncStatus?: string;
+  toggleTheme: () => void;
+  onSync: () => void;
+  isSyncing: boolean;
+  pendingCount: number;
+  onRetryFailed: () => void;
+  failedCount: number;
+  onClearData: () => void;
+  syncStatus: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   viewMode,
   setViewMode,
   darkMode,
-  setDarkMode,
-  onNewDocument,
-  onSearch,
+  toggleTheme,
   onSync,
   isSyncing,
   pendingCount,
@@ -51,7 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   onClearData,
   syncStatus,
 }) => {
-  const [deferredPrompt, setDeferredPrompt] = useState<BIPEvent | null>(null);
+
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -59,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({
       // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
       // Stash the event so it can be triggered later.
-      setDeferredPrompt(e as BIPEvent);
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
     };
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
@@ -92,9 +84,9 @@ export const Header: React.FC<HeaderProps> = ({
             <div className='flex-shrink-0 flex items-center gap-2'>
               <div className={`p-1.5 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-red-100'}`}>
                 <img
-                  src={darkMode ? '/icon-dark.png' : '/icon-light.png'}
-                  alt='Logo'
-                  className='w-8 h-8 sm:w-10 sm:h-10 object-contain'
+                  src={darkMode ? "/icon-dark.png" : "/icon-light.png"}
+                  alt="Logo"
+                  className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
                 />
               </div>
               <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white hidden sm:block'>
@@ -105,16 +97,16 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Desktop Navigation */}
             <div className='hidden md:flex ml-6 items-baseline space-x-2'>
               <button
-                onClick={onNewDocument}
+                onClick={() => setViewMode(viewMode === 'form' ? 'list' : 'form')}
                 className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
               >
-                <PlusCircle size={16} className='mr-2' />
-                New Record
+                {viewMode === 'form' ? <List size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
+                {viewMode === 'form' ? 'View List' : 'New Record'}
               </button>
 
               <button
-                onClick={onSearch}
-                className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                onClick={() => setViewMode('search')}
+                className={`inline-flex items-center px-3 py-2 border text-sm font-medium rounded-md ${viewMode === 'search' ? 'border-oracle-500 text-oracle-600 bg-oracle-50 dark:bg-gray-700' : 'border-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               >
                 <Search size={16} className='mr-2' />
                 Search
@@ -129,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={handleInstallClick}
                 className='hidden md:flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all text-white bg-blue-600 hover:bg-blue-700 shadow-sm animate-pulse'
-                title='Install Application'
+                title="Install Application"
               >
                 <Download size={18} className='mr-2' />
                 Install App
@@ -139,20 +131,19 @@ export const Header: React.FC<HeaderProps> = ({
             {/* Sync Button - Always Visible but compact on mobile */}
             <button
               onClick={onSync}
-              disabled={isSyncing || (pendingCount ?? 0) === 0}
-              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${
-                (pendingCount ?? 0) > 0
-                  ? 'text-oracle-600 bg-oracle-50 hover:bg-oracle-100 dark:bg-gray-700 dark:text-oracle-500'
-                  : 'text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
-              }`}
+              disabled={isSyncing || pendingCount === 0}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${pendingCount > 0
+                ? 'text-oracle-600 bg-oracle-50 hover:bg-oracle-100 dark:bg-gray-700 dark:text-oracle-500'
+                : 'text-gray-400 bg-gray-100 dark:bg-gray-800 cursor-not-allowed'
+                }`}
             >
               <RefreshCw
                 size={18}
-                className={`${isSyncing && (pendingCount ?? 0) > 0 ? 'animate-spin' : ''}`}
+                className={`${isSyncing && pendingCount > 0 ? 'animate-spin' : ''}`}
               />
               {/* Hide text on very small screens if needed, but count is important */}
               <span className='ml-2 font-bold'>
-                {isSyncing && (pendingCount ?? 0) > 0 && syncStatus ? '' : `(${pendingCount ?? 0})`}
+                {isSyncing && pendingCount > 0 && syncStatus ? '' : `(${pendingCount})`}
               </span>
             </button>
 
@@ -168,7 +159,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             {/* Desktop Only Actions */}
             <div className='hidden md:flex items-center gap-1 border-l border-gray-200 dark:border-gray-700 pl-4'>
-              {(failedCount ?? 0) > 0 && (
+              {failedCount > 0 && (
                 <button
                   onClick={onRetryFailed}
                   disabled={isSyncing}
@@ -186,7 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
                 <Trash2 size={20} />
               </button>
               <button
-                onClick={() => setDarkMode(!darkMode)}
+                onClick={toggleTheme}
                 className='p-2 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
                 title='Toggle Theme'
               >
@@ -201,85 +192,54 @@ export const Header: React.FC<HeaderProps> = ({
       {isMenuOpen && (
         <div className='md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg'>
           <div className='px-4 pt-2 pb-4 space-y-1 sm:px-3'>
-            {setViewMode && (
-              <button
-                onClick={() => {
-                  setViewMode(viewMode === 'form' ? 'list' : 'form');
-                  setIsMenuOpen(false);
-                }}
-                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-              >
-                {viewMode === 'form' ? (
-                  <span className='flex items-center'>
-                    <List size={18} className='mr-2' /> View List
-                  </span>
-                ) : (
-                  <span className='flex items-center'>
-                    <PlusCircle size={18} className='mr-2' /> New Record
-                  </span>
-                )}
-              </button>
-            )}
+            <button
+              onClick={() => { setViewMode(viewMode === 'form' ? 'list' : 'form'); setIsMenuOpen(false); }}
+              className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+            >
+              {viewMode === 'form' ? <span className='flex items-center'><List size={18} className='mr-2' /> View List</span> : <span className='flex items-center'><PlusCircle size={18} className='mr-2' /> New Record</span>}
+            </button>
 
-            {setViewMode && (
-              <button
-                onClick={() => {
-                  setViewMode('search');
-                  setIsMenuOpen(false);
-                }}
-                className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium ${viewMode === 'search' ? 'text-oracle-600 bg-oracle-50 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-              >
-                <span className='flex items-center'>
-                  <Search size={18} className='mr-2' /> Search Online
-                </span>
-              </button>
-            )}
+            <button
+              onClick={() => { setViewMode('search'); setIsMenuOpen(false); }}
+              className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium ${viewMode === 'search' ? 'text-oracle-600 bg-oracle-50 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+            >
+              <span className='flex items-center'><Search size={18} className='mr-2' /> Search Online</span>
+            </button>
 
             {deferredPrompt && (
               <button
-                onClick={() => {
-                  handleInstallClick();
-                  setIsMenuOpen(false);
-                }}
+                onClick={() => { handleInstallClick(); setIsMenuOpen(false); }}
                 className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-blue-600 hover:bg-blue-50 dark:text-blue-400'
               >
-                <span className='flex items-center'>
-                  <Download size={18} className='mr-2' /> Install App
-                </span>
+                <span className='flex items-center'><Download size={18} className='mr-2' /> Install App</span>
               </button>
             )}
 
             <div className='border-t border-gray-200 dark:border-gray-700 my-2 pt-2'>
               <div className='flex justify-around items-center'>
                 <button
-                  onClick={() => setDarkMode(!darkMode)}
+                  onClick={() => { toggleTheme(); }}
                   className='p-3 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
-                  title='Toggle Theme'
+                  title="Toggle Theme"
                 >
                   {darkMode ? <Sun size={24} /> : <Moon size={24} />}
                 </button>
 
-                {(failedCount ?? 0) > 0 && (
+                {failedCount > 0 && (
                   <button
-                    onClick={() => {
-                      onRetryFailed();
-                      setIsMenuOpen(false);
-                    }}
+                    onClick={() => { onRetryFailed(); setIsMenuOpen(false); }}
                     disabled={isSyncing}
                     className={`p-3 rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    title={`Retry Failed (${failedCount ?? 0})`}
+                    title={`Retry Failed (${failedCount})`}
                   >
                     <AlertTriangle size={24} />
                   </button>
                 )}
 
                 <button
-                  onClick={() => {
-                    onClearData();
-                    setIsMenuOpen(false);
-                  }}
+                  onClick={() => { onClearData(); setIsMenuOpen(false); }}
                   className='p-3 rounded-full text-red-500 hover:bg-red-50 dark:text-red-400'
-                  title='Reset Data'
+                  title="Reset Data"
                 >
                   <Trash2 size={24} />
                 </button>
@@ -288,6 +248,6 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         </div>
       )}
-    </header>
+    </header >
   );
 };

@@ -13,16 +13,16 @@ export interface DocMaster {
   phone: string;
   address: string;
   doctorName?: string;
-  branchName?: string; // [NEW] FD1 | FD2
-  patientType?: string; // [NEW] General | Orth | Surgery
-  appDate?: string; // [NEW] YYYY-MM-DD
-  po?: string; // [NEW] Post Office
-  ps?: string; // [NEW] Police Station
-  dist?: string; // [NEW] District
+  branchName?: string;    // [NEW] FD1 | FD2
+  patientType?: string;   // [NEW] General | Orth | Surgery
+  appDate?: string;       // [NEW] YYYY-MM-DD
+  po?: string;            // [NEW] Post Office
+  ps?: string;            // [NEW] Police Station
+  dist?: string;          // [NEW] District
   emgContactPerson?: string; // [NEW]
-  emgContactNo?: string; // [NEW]
-  refBy?: string; // [NEW]
-  createdAt: string;
+  emgContactNo?: string;     // [NEW]
+  refBy?: string;            // [NEW]
+  createdAt: number;
   syncStatus: 'pending' | 'synced' | 'failed';
 }
 
