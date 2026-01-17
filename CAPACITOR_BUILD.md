@@ -26,6 +26,49 @@ The project now uses a **hybrid approach**:
 - Node.js 22+ (required by Capacitor CLI 8.0.1)
 - Android SDK and Gradle (for building APK)
 
+#### Setting up Android SDK
+
+1. **Install Android SDK:**
+   - Option 1: Install [Android Studio](https://developer.android.com/studio) (recommended - includes SDK)
+   - Option 2: Install [Android SDK Command-line tools](https://developer.android.com/studio#command-tools) only
+
+2. **Configure SDK location:**
+   
+   After installing Android SDK, you need to tell Gradle where to find it. Choose one method:
+
+   **Method 1: Environment Variable (Recommended)**
+   ```bash
+   # Linux/Mac - Add to ~/.bashrc or ~/.zshrc
+   export ANDROID_HOME=$HOME/Android/Sdk
+   export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
+   
+   # Windows - Set in System Environment Variables
+   # ANDROID_HOME = C:\Users\YourUsername\AppData\Local\Android\Sdk
+   ```
+
+   **Method 2: local.properties file**
+   
+   Create `android/local.properties` file:
+   ```properties
+   # Linux/Mac
+   sdk.dir=/home/username/Android/Sdk
+   
+   # Windows
+   sdk.dir=C\:\\Users\\YourUsername\\AppData\\Local\\Android\\Sdk
+   ```
+   
+   Note: Replace `username` with your actual username. On Windows, use double backslashes `\\`.
+
+3. **Verify installation:**
+   ```bash
+   # Check ANDROID_HOME
+   echo $ANDROID_HOME  # Linux/Mac
+   echo %ANDROID_HOME%  # Windows
+   
+   # Or check if SDK is accessible
+   ls $ANDROID_HOME/platforms  # Should show installed Android versions
+   ```
+
 ### Build Steps
 
 1. **Build static export for Capacitor:**
@@ -96,6 +139,24 @@ The API routes in `app/api/` should be deployed separately:
 ### "Could not find the web assets directory"
 - Make sure you run `npm run build:capacitor` before `npm run android:sync`
 - Verify `out/index.html` exists after build
+
+### "SDK location not found" error when building APK
+This error means Gradle cannot find your Android SDK:
+```
+SDK location not found. Define a valid SDK location with an ANDROID_HOME 
+environment variable or by setting the sdk.dir path in your project's 
+local properties file at 'android/local.properties'.
+```
+
+**Solution:**
+1. Install Android SDK (see Prerequisites section above)
+2. Set `ANDROID_HOME` environment variable OR create `android/local.properties` file
+3. Restart your terminal/IDE after setting environment variables
+
+**Example local.properties:**
+```properties
+sdk.dir=/home/username/Android/Sdk
+```
 
 ### Node.js version error
 - Capacitor CLI 8.0.1 requires Node.js 22+
