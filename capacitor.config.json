@@ -3,6 +3,13 @@
   "appName": "DocuDigitize Pro",
   "webDir": "out",
   "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https",
+    "cleartext": true,
+    "allowNavigation": [
+      "fd.informatixsystems.com"
+    ]
+  },
   "ios": {
     "contentInset": "automatic"
   },

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 // Configure allowed origins (extend via CORS_ORIGINS env, comma-separated)
 const defaultAllowedOrigins = new Set<string>([
   'http://localhost:3000',
+  'http://localhost',
   'http://127.0.0.1:3000',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
