@@ -150,7 +150,7 @@ android/.gradle/
 *.jks
 gradle.properties
 local.properties
-
+web
 # Bun
 bunfig.toml
 .bun

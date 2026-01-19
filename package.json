@@ -10,15 +10,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "format": "prettier --write .",
-    "export": "next build && next export",
+    "build:capacitor": "./build-capacitor-new.sh",
     "build:pwa": "next build",
-    "build:android": "bun run build && bun run build:android:prepare && bun run build:android:release",
-    "build:android:prepare": "bunx cap copy && cd android && ./gradlew clean && cd ..",
-    "build:android:debug": "cd android && ./gradlew assembleDebug && cd ..",
-    "build:android:release": "cd android && ./gradlew assembleRelease && cd ..",
-    "android:open": "bunx cap open android",
-    "android:sync": "bunx cap sync android",
-    "android:run": "bunx cap run android"
+    "build:android": "npm run build:capacitor && npm run android:sync && cd android && ./gradlew assembleDebug && cd ..",
+    "build:android:release": "npm run build:capacitor && npm run android:sync && cd android && ./gradlew assembleRelease && cd ..",
+    "android:open": "npx @capacitor/cli open android",
+    "android:sync": "npx @capacitor/cli sync android",
+    "android:run": "npx @capacitor/cli run android"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.1",

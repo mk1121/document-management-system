@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import oracledb from 'oracledb';
 import dbConfig from '@/dbConfig';
+import { withCorsHeaders, handleCorsOptions } from '@/lib/cors';
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -50,12 +55,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         });
       }
     }
-    return NextResponse.json(images);
+    return withCorsHeaders(NextResponse.json(images), _req.headers.get('origin'));
   } catch (err: any) {
     console.error('Get Images Error:', err);
-    return NextResponse.json(
-      { message: 'Failed to get images', error: err.message },
-      { status: 500 },
+    return withCorsHeaders(
+      NextResponse.json(
+        { message: 'Failed to get images', error: err.message },
+        { status: 500 },
+      ),
+      _req.headers.get('origin'),
     );
   } finally {
     if (connection) {
@@ -106,15 +114,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     await connection.commit();
-    return NextResponse.json({
-      message: 'Images added successfully',
-      count: images.length,
-    });
+    return withCorsHeaders(
+      NextResponse.json({
+        message: 'Images added successfully',
+        count: images.length,
+      }),
+      req.headers.get('origin'),
+    );
   } catch (err: any) {
     console.error('Add Images Error:', err);
-    return NextResponse.json(
-      { message: 'Failed to add images', error: err.message },
-      { status: 500 },
+    return withCorsHeaders(
+      NextResponse.json(
+        { message: 'Failed to add images', error: err.message },
+        { status: 500 },
+      ),
+      req.headers.get('origin'),
     );
   } finally {
     if (connection) {

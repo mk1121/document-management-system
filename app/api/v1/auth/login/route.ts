@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import oracledb from 'oracledb';
 import dbConfig from '@/dbConfig';
+import { withCorsHeaders, handleCorsOptions } from '@/lib/cors';
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 export async function POST(req: NextRequest) {
   const { username, password } = await req.json();
@@ -32,20 +37,30 @@ export async function POST(req: NextRequest) {
 
     const isValid = (result.outBinds as any).ret === 1;
 
+    const origin = req.headers.get('origin');
     if (isValid) {
-      return NextResponse.json({
-        success: true,
-        message: 'Login successful',
-      });
+      return withCorsHeaders(
+        NextResponse.json({
+          success: true,
+          message: 'Login successful',
+        }),
+        origin,
+      );
     } else {
-      return NextResponse.json({
-        success: false,
-        message: 'Invalid credentials',
-      });
+      return withCorsHeaders(
+        NextResponse.json({
+          success: false,
+          message: 'Invalid credentials',
+        }),
+        origin,
+      );
     }
   } catch (err: any) {
     console.error('Login error:', err);
-    return NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 });
+    return withCorsHeaders(
+      NextResponse.json({ success: false, message: 'Internal server error' }, { status: 500 }),
+      req.headers.get('origin'),
+    );
   } finally {
     if (connection) {
       try {

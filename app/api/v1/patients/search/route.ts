@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import oracledb from 'oracledb';
 import dbConfig from '@/dbConfig';
+import { withCorsHeaders, handleCorsOptions } from '@/lib/cors';
+
+export async function OPTIONS(request: NextRequest) {
+  return handleCorsOptions(request);
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -47,10 +52,13 @@ export async function GET(req: NextRequest) {
       dob: row.DOB_STR,
     }));
 
-    return NextResponse.json(patients);
+    return withCorsHeaders(NextResponse.json(patients), req.headers.get('origin'));
   } catch (err: any) {
     console.error('Search Error:', err);
-    return NextResponse.json({ message: 'Search failed', error: err.message }, { status: 500 });
+    return withCorsHeaders(
+      NextResponse.json({ message: 'Search failed', error: err.message }, { status: 500 }),
+      req.headers.get('origin'),
+    );
   } finally {
     if (connection) {
       try {
