@@ -4,7 +4,8 @@ const nextConfig: NextConfig = {  // output: 'export',  // Disabled for API rout
   // পরিবর্তন: 'http://' বাদ দেওয়া হয়েছে
   allowedDevOrigins: [
     "localhost:3000",
-    "192.168.1.154:3000" 
+    "192.168.1.154:3000",
+    "fd.informatixsystems.com:3000"
   ],
   typescript: {
     ignoreBuildErrors: false,

@@ -150,7 +150,7 @@ android/.gradle/
 *.jks
 gradle.properties
 local.properties
-
+web
 # Bun
 bunfig.toml
 .bun
@@ -176,9 +176,6 @@ Thumbs.db
 *.tmp
 tmp/
 temp/
-api.backup.tmp/
-next.config.ts.backup
-*.backup
 
 # Logs from Capacitor/Gradle
 capacitor.log
