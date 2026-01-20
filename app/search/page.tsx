@@ -183,16 +183,18 @@ export default function SearchPage() {
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
       <Header
         viewMode='search'
-        setViewMode={() => {}}
+        setViewMode={() => { }}
         darkMode={darkMode}
         toggleTheme={() => setDarkMode(!darkMode)}
-        onSync={() => {}}
+        onSync={() => { }}
         isSyncing={false}
         pendingCount={0}
-        onRetryFailed={() => {}}
+        onRetryFailed={() => { }}
         failedCount={0}
-        onClearData={() => {}}
+        onClearData={() => { }}
         syncStatus=""
+        isOnlineMode={true}
+        toggleOnlineMode={() => { }}
       />
 
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>

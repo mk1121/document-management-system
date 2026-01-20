@@ -28,6 +28,8 @@ interface HeaderProps {
   syncStatus: string;
   userRole?: string;
   username?: string;
+  isOnlineMode: boolean; // [NEW]
+  toggleOnlineMode: () => void; // [NEW]
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
   syncStatus,
   userRole,
   username,
+  isOnlineMode,
+  toggleOnlineMode,
 }) => {
 
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -154,10 +158,22 @@ export const Header: React.FC<HeaderProps> = ({
                 size={18}
                 className={`${isSyncing && pendingCount > 0 ? 'animate-spin' : ''} text-gray-700 dark:text-gray-400`}
               />
-              {/* Hide text on very small screens if needed, but count is important */}
               <span className='ml-2 font-bold'>
                 {isSyncing && pendingCount > 0 && syncStatus ? '' : `(${pendingCount})`}
               </span>
+            </button>
+
+            {/* Online/Offline Toggle */}
+            <button
+              onClick={toggleOnlineMode}
+              className={`flex items-center px-3 py-2 rounded-md text-sm font-medium transition-all ${isOnlineMode
+                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                }`}
+              title={isOnlineMode ? "Switch to Offline Mode" : "Switch to Online Mode"}
+            >
+              <div className={`w-3 h-3 rounded-full mr-2 ${isOnlineMode ? 'bg-green-500' : 'bg-gray-500'}`} />
+              {isOnlineMode ? 'Online' : 'Offline'}
             </button>
 
             {/* Username Display */}
@@ -209,67 +225,69 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Mobile Menu Dropdown */}
-      {isMenuOpen && (
-        <div className='md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg'>
-          <div className='px-4 pt-2 pb-4 space-y-1 sm:px-3'>
-            {userRole !== 'Monitoring' && (
-              <button
-                onClick={() => { setViewMode(viewMode === 'form' ? 'list' : 'form'); setIsMenuOpen(false); }}
-                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-              >
-                {viewMode === 'form' ? <span className='flex items-center'><List size={18} className='mr-2' /> View List</span> : <span className='flex items-center'><PlusCircle size={18} className='mr-2' /> New Record</span>}
-              </button>
-            )}
-
-            <button
-              onClick={() => { setViewMode('search'); setIsMenuOpen(false); }}
-              className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium ${viewMode === 'search' ? 'text-oracle-600 bg-oracle-50 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
-            >
-              <span className='flex items-center'><Search size={18} className='mr-2' /> Search Online</span>
-            </button>
-
-            {deferredPrompt && (
-              <button
-                onClick={() => { handleInstallClick(); setIsMenuOpen(false); }}
-                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-400'
-              >
-                <span className='flex items-center'><Download size={18} className='mr-2' /> Install App</span>
-              </button>
-            )}
-
-            <div className='border-t border-gray-200 dark:border-gray-700 my-2 pt-2'>
-              <div className='flex justify-around items-center'>
+      {
+        isMenuOpen && (
+          <div className='md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg'>
+            <div className='px-4 pt-2 pb-4 space-y-1 sm:px-3'>
+              {userRole !== 'Monitoring' && (
                 <button
-                  onClick={() => { toggleTheme(); }}
-                  className='p-3 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
-                  title="Toggle Theme"
+                  onClick={() => { setViewMode(viewMode === 'form' ? 'list' : 'form'); setIsMenuOpen(false); }}
+                  className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                 >
-                  {darkMode ? <Sun size={24} /> : <Moon size={24} />}
+                  {viewMode === 'form' ? <span className='flex items-center'><List size={18} className='mr-2' /> View List</span> : <span className='flex items-center'><PlusCircle size={18} className='mr-2' /> New Record</span>}
                 </button>
+              )}
 
-                {failedCount > 0 && (
+              <button
+                onClick={() => { setViewMode('search'); setIsMenuOpen(false); }}
+                className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium ${viewMode === 'search' ? 'text-oracle-600 bg-oracle-50 dark:bg-gray-700' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
+              >
+                <span className='flex items-center'><Search size={18} className='mr-2' /> Search Online</span>
+              </button>
+
+              {deferredPrompt && (
+                <button
+                  onClick={() => { handleInstallClick(); setIsMenuOpen(false); }}
+                  className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-900 hover:bg-gray-100 dark:text-gray-400'
+                >
+                  <span className='flex items-center'><Download size={18} className='mr-2' /> Install App</span>
+                </button>
+              )}
+
+              <div className='border-t border-gray-200 dark:border-gray-700 my-2 pt-2'>
+                <div className='flex justify-around items-center'>
                   <button
-                    onClick={() => { onRetryFailed(); setIsMenuOpen(false); }}
-                    disabled={isSyncing}
-                    className={`p-3 rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    title={`Retry Failed (${failedCount})`}
+                    onClick={() => { toggleTheme(); }}
+                    className='p-3 rounded-full text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'
+                    title="Toggle Theme"
                   >
-                    <AlertTriangle size={24} />
+                    {darkMode ? <Sun size={24} /> : <Moon size={24} />}
                   </button>
-                )}
 
-                <button
-                  onClick={() => { onClearData(); setIsMenuOpen(false); }}
-                  className='p-3 rounded-full text-red-500 hover:bg-red-50 dark:text-red-400'
-                  title="Reset Data"
-                >
-                  <Trash2 size={24} />
-                </button>
+                  {failedCount > 0 && (
+                    <button
+                      onClick={() => { onRetryFailed(); setIsMenuOpen(false); }}
+                      disabled={isSyncing}
+                      className={`p-3 rounded-full text-red-600 hover:bg-red-50 dark:text-red-400 ${isSyncing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      title={`Retry Failed (${failedCount})`}
+                    >
+                      <AlertTriangle size={24} />
+                    </button>
+                  )}
+
+                  <button
+                    onClick={() => { onClearData(); setIsMenuOpen(false); }}
+                    className='p-3 rounded-full text-red-500 hover:bg-red-50 dark:text-red-400'
+                    title="Reset Data"
+                  >
+                    <Trash2 size={24} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
     </header >
   );
 };

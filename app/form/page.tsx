@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, RefreshCw, X } from 'lucide-react';
 import ReactCrop, { type Crop, type PixelCrop, centerCrop, makeAspectCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -241,15 +241,7 @@ export default function FormPage() {
   }, []);
 
   // Load document for editing
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const editId = urlParams.get('edit');
-    if (editId) {
-      loadDocumentForEdit(editId);
-    }
-  }, []);
-
-  const loadDocumentForEdit = async (id: string) => {
+  const loadDocumentForEdit = useCallback(async (id: string) => {
     try {
       const doc = await DB.getDocMaster(id, _username);
       if (doc) {
@@ -286,7 +278,16 @@ export default function FormPage() {
       console.error('Failed to load document:', error);
       showToast('Failed to load document', 'error');
     }
-  };
+  }, [_username, showToast]);
+
+  // Load document for editing - useEffect dependent on function
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('edit');
+    if (editId) {
+      loadDocumentForEdit(editId);
+    }
+  }, [loadDocumentForEdit]);
 
   const handleDobChange = (e: any) => {
     const dob = e.target.value;
@@ -320,9 +321,9 @@ export default function FormPage() {
   const processFinalImage = async (file: File, isCropped: boolean = false) => {
     try {
       setIsProcessing(true);
-      
+
       let url: string;
-      
+
       if (isCropped) {
         // Skip compression for cropped images (already optimized from canvas)
         // Convert File to data URL for storage
@@ -335,7 +336,7 @@ export default function FormPage() {
         // Compress regular images - returns data URL
         url = await compressImage(file);
       }
-      
+
       setImages(prev => [...prev, { id: generateUUID(), url, file }]);
     } catch (error) {
       console.error('Image processing failed:', error);
@@ -481,11 +482,10 @@ export default function FormPage() {
                   {[1, 2, 3].map(step => (
                     <div
                       key={step}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${
-                        step <= currentStep
-                          ? 'bg-oracle-600 text-white'
-                          : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium ${step <= currentStep
+                        ? 'bg-oracle-600 text-white'
+                        : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'
+                        }`}
                     >
                       {step}
                     </div>
@@ -497,126 +497,126 @@ export default function FormPage() {
             {/* Step 1: Basic Information */}
             {currentStep === 1 && (
               <div className='grid grid-cols-1 gap-y-2 gap-x-4 sm:grid-cols-2'>
-              <div className='sm:col-span-2'>
-                <FormField
-                  label='Full Name'
-                  value={formData.name}
-                  onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder='e.g. Rahim Uddin'
-                  required
-                />
-              </div>
-              <FormField
-                label='Date of Birth'
-                type='date'
-                value={formData.dob}
-                onChange={handleDobChange}
-              />
-              <FormField
-                label='Phone Number'
-                type='tel'
-                value={formData.phone}
-                onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder='e.g. 01711...'
-                required
-              />
-
-              <div className='sm:col-span-1'>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Gender
-                </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e: any) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
-                >
-                  <option value="Male" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Male</option>
-                  <option value="Female" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Female</option>
-                  <option value="Other" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Other</option>
-                </select>
-              </div>
-
-              <div className='sm:col-span-1'>
-                <FormField
-                  label="Age"
-                  type="text"
-                  value={formData.age.toString()}
-                  onChange={() => {}}
-                  placeholder="Auto-calculated"
-                />
-              </div>
-
-              <div className='sm:col-span-1'>
-                <FormField
-                  label='Branch'
-                  type='select'
-                  value={formData.branchName || 'FD1'}
-                  onChange={(e: any) => setFormData({ ...formData, branchName: e.target.value })}
-                  required
-                  options={[
-                    { label: 'Panchlaish', value: 'FD1' },
-                    { label: 'Khulshi', value: 'FD2' }
-                  ]}
-                />
-              </div>
-
-              <div className='sm:col-span-1'>
-                <FormField
-                  label='Patient Type'
-                  type='select'
-                  value={formData.patientType || 'General'}
-                  onChange={(e: any) => setFormData({ ...formData, patientType: e.target.value })}
-                  required
-                  options={[
-                    { label: 'General', value: 'General' },
-                    { label: 'Orth', value: 'Orth' },
-                    { label: 'Surgery', value: 'Surgery' }
-                  ]}
-                />
-              </div>
-
-              <div className='sm:col-span-1'>
-                <FormField
-                  label='App Date'
-                  type='date'
-                  value={formData.appDate || ''}
-                  onChange={(e: any) => setFormData({ ...formData, appDate: e.target.value })}
-                />
-              </div>
-
-
-              <div className='sm:col-span-2'>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Address
-                </label>
-                <textarea
-                  value={formData.address}
-                  onChange={(e: any) => setFormData({ ...formData, address: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm mb-4"
-                />
-                <div className="grid grid-cols-3 gap-4">
+                <div className='sm:col-span-2'>
                   <FormField
-                    label='PO'
-                    value={formData.po}
-                    onChange={(e: any) => setFormData({ ...formData, po: e.target.value })}
-                    placeholder="Post Office"
-                  />
-                  <FormField
-                    label='PS'
-                    value={formData.ps}
-                    onChange={(e: any) => setFormData({ ...formData, ps: e.target.value })}
-                    placeholder="Police Station"
-                  />
-                  <FormField
-                    label='District'
-                    value={formData.dist}
-                    onChange={(e: any) => setFormData({ ...formData, dist: e.target.value })}
-                    placeholder="District"
+                    label='Full Name'
+                    value={formData.name}
+                    onChange={(e: any) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder='e.g. Rahim Uddin'
+                    required
                   />
                 </div>
+                <FormField
+                  label='Date of Birth'
+                  type='date'
+                  value={formData.dob}
+                  onChange={handleDobChange}
+                />
+                <FormField
+                  label='Phone Number'
+                  type='tel'
+                  value={formData.phone}
+                  onChange={(e: any) => setFormData({ ...formData, phone: e.target.value })}
+                  placeholder='e.g. 01711...'
+                  required
+                />
+
+                <div className='sm:col-span-1'>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Gender
+                  </label>
+                  <select
+                    value={formData.gender}
+                    onChange={(e: any) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm"
+                  >
+                    <option value="Male" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Male</option>
+                    <option value="Female" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Female</option>
+                    <option value="Other" className='bg-white dark:bg-gray-700 text-gray-900 dark:text-white'>Other</option>
+                  </select>
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label="Age"
+                    type="text"
+                    value={formData.age.toString()}
+                    onChange={() => { }}
+                    placeholder="Auto-calculated"
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Branch'
+                    type='select'
+                    value={formData.branchName || 'FD1'}
+                    onChange={(e: any) => setFormData({ ...formData, branchName: e.target.value })}
+                    required
+                    options={[
+                      { label: 'Panchlaish', value: 'FD1' },
+                      { label: 'Khulshi', value: 'FD2' }
+                    ]}
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='Patient Type'
+                    type='select'
+                    value={formData.patientType || 'General'}
+                    onChange={(e: any) => setFormData({ ...formData, patientType: e.target.value })}
+                    required
+                    options={[
+                      { label: 'General', value: 'General' },
+                      { label: 'Orth', value: 'Orth' },
+                      { label: 'Surgery', value: 'Surgery' }
+                    ]}
+                  />
+                </div>
+
+                <div className='sm:col-span-1'>
+                  <FormField
+                    label='App Date'
+                    type='date'
+                    value={formData.appDate || ''}
+                    onChange={(e: any) => setFormData({ ...formData, appDate: e.target.value })}
+                  />
+                </div>
+
+
+                <div className='sm:col-span-2'>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Address
+                  </label>
+                  <textarea
+                    value={formData.address}
+                    onChange={(e: any) => setFormData({ ...formData, address: e.target.value })}
+                    rows={2}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-oracle-500 focus:border-oracle-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white sm:text-sm mb-4"
+                  />
+                  <div className="grid grid-cols-3 gap-4">
+                    <FormField
+                      label='PO'
+                      value={formData.po}
+                      onChange={(e: any) => setFormData({ ...formData, po: e.target.value })}
+                      placeholder="Post Office"
+                    />
+                    <FormField
+                      label='PS'
+                      value={formData.ps}
+                      onChange={(e: any) => setFormData({ ...formData, ps: e.target.value })}
+                      placeholder="Police Station"
+                    />
+                    <FormField
+                      label='District'
+                      value={formData.dist}
+                      onChange={(e: any) => setFormData({ ...formData, dist: e.target.value })}
+                      placeholder="District"
+                    />
+                  </div>
+                </div>
               </div>
-            </div>
             )}
 
             {/* Step 2: Additional Details */}
@@ -624,42 +624,42 @@ export default function FormPage() {
               <div className='grid grid-cols-1 gap-y-2 gap-x-4 sm:grid-cols-2'>
                 <div className='sm:col-span-2'>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <FormField
+                      label='Emergency Contact Person'
+                      value={formData.emgContactPerson}
+                      onChange={(e: any) => setFormData({ ...formData, emgContactPerson: e.target.value })}
+                      placeholder="Name"
+                    />
+                    <FormField
+                      label='Emergency Contact No'
+                      value={formData.emgContactNo}
+                      onChange={(e: any) => setFormData({ ...formData, emgContactNo: e.target.value })}
+                      placeholder="Phone Number"
+                    />
+                  </div>
+                </div>
+
+                <div className='sm:col-span-1'>
                   <FormField
-                    label='Emergency Contact Person'
-                    value={formData.emgContactPerson}
-                    onChange={(e: any) => setFormData({ ...formData, emgContactPerson: e.target.value })}
-                    placeholder="Name"
+                    label='Referred By'
+                    value={formData.refBy}
+                    onChange={(e: any) => setFormData({ ...formData, refBy: e.target.value })}
+                    placeholder="Referral Name (Optional)"
                   />
+                </div>
+
+                <div className='sm:col-span-2'>
                   <FormField
-                    label='Emergency Contact No'
-                    value={formData.emgContactNo}
-                    onChange={(e: any) => setFormData({ ...formData, emgContactNo: e.target.value })}
-                    placeholder="Phone Number"
+                    label='Doctor REF'
+                    type='select'
+                    value={formData.doctorName}
+                    onChange={(e: any) => setFormData({ ...formData, doctorName: e.target.value })}
+                    placeholder='Select Doctor'
+                    required
+                    options={doctors.map(d => ({ label: d.name, value: d.name }))}
                   />
                 </div>
               </div>
-
-              <div className='sm:col-span-1'>
-                <FormField
-                  label='Referred By'
-                  value={formData.refBy}
-                  onChange={(e: any) => setFormData({ ...formData, refBy: e.target.value })}
-                  placeholder="Referral Name (Optional)"
-                />
-              </div>
-
-              <div className='sm:col-span-2'>
-                <FormField
-                  label='Doctor REF'
-                  type='select'
-                  value={formData.doctorName}
-                  onChange={(e: any) => setFormData({ ...formData, doctorName: e.target.value })}
-                  placeholder='Select Doctor'
-                  required
-                  options={doctors.map(d => ({ label: d.name, value: d.name }))}
-                />
-              </div>
-            </div>
             )}
 
             {/* Step 3: Images */}
@@ -672,102 +672,102 @@ export default function FormPage() {
                       Document Images (First image is primary)
                     </label>
 
-                <div className='flex flex-wrap gap-4 mb-4'>
-                  {images.map((img, index) => (
-                    <div key={img.id} className="flex flex-col gap-1.5">
-                      <div
-                        className='relative group w-48 h-60 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
-                      >
-                        <img
-                          src={img.url}
-                          alt={`Doc ${index + 1}`}
-                          className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
-                          onClick={() => setPreviewImage(img.url)}
-                        />
-                        <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
-                          {index + 1}
-                        </div>
+                    <div className='flex flex-wrap gap-4 mb-4'>
+                      {images.map((img, index) => (
+                        <div key={img.id} className="flex flex-col gap-1.5">
+                          <div
+                            className='relative group w-48 h-60 bg-gray-100 rounded-lg overflow-hidden border border-gray-200 dark:border-gray-600 shadow-sm'
+                          >
+                            <img
+                              src={img.url}
+                              alt={`Doc ${index + 1}`}
+                              className='w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity'
+                              onClick={() => setPreviewImage(img.url)}
+                            />
+                            <div className='absolute top-0 right-0 bg-black/50 text-white text-xs px-1.5 rounded-bl'>
+                              {index + 1}
+                            </div>
 
-                        {/* Controls Overlay */}
-                        <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
-                          <button
-                            onClick={() => moveImage(index, 'up')}
-                            disabled={index === 0}
-                              className='text-white hover:text-gray-200 disabled:opacity-30'
-                          >
-                            <MoveLeft size={16} />
-                          </button>
-                          <button
-                            onClick={() => removeImage(img.id)}
-                            className='text-red-400 hover:text-red-200'
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                          <button
-                            onClick={() => moveImage(index, 'down')}
-                            disabled={index === images.length - 1}
-                              className='text-white hover:text-gray-200 disabled:opacity-30'
-                          >
-                            <MoveRight size={16} />
-                          </button>
-                        </div>
+                            {/* Controls Overlay */}
+                            <div className='absolute bottom-0 w-full bg-black/70 flex justify-between px-2 py-1.5 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity'>
+                              <button
+                                onClick={() => moveImage(index, 'up')}
+                                disabled={index === 0}
+                                className='text-white hover:text-gray-200 disabled:opacity-30'
+                              >
+                                <MoveLeft size={16} />
+                              </button>
+                              <button
+                                onClick={() => removeImage(img.id)}
+                                className='text-red-400 hover:text-red-200'
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                              <button
+                                onClick={() => moveImage(index, 'down')}
+                                disabled={index === images.length - 1}
+                                className='text-white hover:text-gray-200 disabled:opacity-30'
+                              >
+                                <MoveRight size={16} />
+                              </button>
+                            </div>
 
-                        {/* Hint Overlay */}
-                        <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
-                          <div className='bg-black/50 rounded-full p-2'>
-                            <Eye size={24} className='text-white' />
+                            {/* Hint Overlay */}
+                            <div className='absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity'>
+                              <div className='bg-black/50 rounded-full p-2'>
+                                <Eye size={24} className='text-white' />
+                              </div>
+                            </div>
+                          </div>
+                          {/* Per-Image Date Picker */}
+                          <div className="flex flex-col">
+                            <label className="text-[10px] text-gray-500 font-medium mb-0.5 ml-0.5">Next App Date:</label>
+                            <input
+                              type="date"
+                              value={img.nextApp || ''}
+                              onChange={(e) => {
+                                const newImages = [...images];
+                                newImages[index].nextApp = e.target.value;
+                                setImages(newImages);
+                              }}
+                              className="w-48 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                            />
                           </div>
                         </div>
-                      </div>
-                      {/* Per-Image Date Picker */}
-                      <div className="flex flex-col">
-                        <label className="text-[10px] text-gray-500 font-medium mb-0.5 ml-0.5">Next App Date:</label>
-                        <input
-                          type="date"
-                          value={img.nextApp || ''}
-                          onChange={(e) => {
-                            const newImages = [...images];
-                            newImages[index].nextApp = e.target.value;
-                            setImages(newImages);
-                          }}
-                          className="w-48 text-xs px-2 py-1.5 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
-                        />
+                      ))}
+
+                      {/* Add Buttons */}
+                      <div className='flex flex-col gap-2'>
+                        {/* Camera Button */}
+                        <button
+                          onClick={() => setShowCamera(true)}
+                          className='w-32 h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
+                        >
+                          <Camera className='text-gray-800 dark:text-gray-400 mb-0.5' size={24} />
+                          <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
+                            Camera
+                          </span>
+                        </button>
+
+                        {/* File Upload Button */}
+                        <label className='w-32 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
+                          <div className='flex flex-col items-center text-center p-1'>
+                            <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={24} />
+                            <span className='text-xs text-gray-500 dark:text-gray-400'>File</span>
+                          </div>
+                          <input
+                            type='file'
+                            accept='image/*'
+                            multiple
+                            className='hidden'
+                            onChange={handleImageUpload}
+                          />
+                        </label>
                       </div>
                     </div>
-                  ))}
-
-                  {/* Add Buttons */}
-                  <div className='flex flex-col gap-2'>
-                    {/* Camera Button */}
-                    <button
-                      onClick={() => setShowCamera(true)}
-                      className='w-32 h-20 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'
-                    >
-                      <Camera className='text-gray-800 dark:text-gray-400 mb-0.5' size={24} />
-                      <span className='text-xs text-gray-600 dark:text-gray-300 font-medium'>
-                        Camera
-                      </span>
-                    </button>
-
-                    {/* File Upload Button */}
-                    <label className='w-32 h-20 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800'>
-                      <div className='flex flex-col items-center text-center p-1'>
-                        <ImageIcon className='text-gray-500 dark:text-gray-400 mb-0.5' size={24} />
-                        <span className='text-xs text-gray-500 dark:text-gray-400'>File</span>
-                      </div>
-                      <input
-                        type='file'
-                        accept='image/*'
-                        multiple
-                        className='hidden'
-                        onChange={handleImageUpload}
-                      />
-                    </label>
                   </div>
-                </div>
+                )}
               </div>
-            )}
-            </div>
             )}
 
             <div className='sticky bottom-0 z-10 bg-white dark:bg-gray-800 mt-8 pt-6 pb-2 border-t border-gray-200 dark:border-gray-700'>

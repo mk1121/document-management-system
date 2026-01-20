@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Camera, Trash2, MoveLeft, MoveRight, Save, Eye, ImageIcon, X, Plus, RefreshCw } from 'lucide-react';
 import ReactCrop, { centerCrop, makeAspectCrop, type Crop, type PixelCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -227,13 +227,15 @@ export default function App() {
     return false;
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [username, setUsername] = useState('');
-  const [userRole, setUserRole] = useState(''); // [NEW] Role State
+  const [username, setUsername] = useState('public_entry');
+  const [userRole, setUserRole] = useState('');
   const [viewMode, setViewMode] = useState<ViewMode>('form');
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncStatus, setSyncStatus] = useState('');
+  const [isOnlineMode, setIsOnlineMode] = useState(false); // Default Offline (Public)
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   const { showToast } = useToast();
 
@@ -336,6 +338,7 @@ export default function App() {
     setIsSearching(true);
     setSearchResults([]);
     setSelectedOnlinePatient(null);
+    fetchDoctors(true); // REFRESH DOCTORS ON SEARCH
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/patients/search?q=${encodeURIComponent(searchQuery)}`);
@@ -480,15 +483,15 @@ export default function App() {
     setImages(newImages);
   };
 
-  const refreshCounts = async () => {
+  const refreshCounts = useCallback(async () => {
     if (!username) return;
     const pending = await DB.getPendingDocuments(username);
     setPendingCount(pending.length);
     const failed = await DB.getFailedDocuments(username);
     setFailedCount(failed.length);
-  };
+  }, [username]);
 
-  const loadDocs = async (pageNum: number) => {
+  const loadDocs = useCallback(async (pageNum: number) => {
     if (!username) return;
     try {
       const { docs, total } = await DB.getDocuments(pageNum, ITEMS_PER_PAGE, username);
@@ -498,19 +501,26 @@ export default function App() {
     } catch (_e) {
       // Error handling for document loading
     }
-  };
+  }, [username]);
 
   useEffect(() => {
     const init = async () => {
       // Handle DB clear if pending
       const clearPending = localStorage.getItem('clear_db_pending');
-      if (clearPending === 'true' && username) {
+      const clearTarget = localStorage.getItem('clear_db_target');
+
+      // If pending, we use the stored target. If not stored, fallback to current username (though reload might have reset it).
+      const userToClear = clearTarget || username;
+
+      if (clearPending === 'true' && userToClear) {
         try {
-          await DB.clearDatabase(username);
+          await DB.clearDatabase(userToClear);
           localStorage.removeItem('clear_db_pending');
-          showToast('Data cleared successfully.', 'success');
+          localStorage.removeItem('clear_db_target');
+          showToast(`Data cleared for ${userToClear} successfully.`, 'success');
         } catch (e) {
           console.error(e);
+          showToast('Failed to clear database.', 'error');
         }
       }
 
@@ -525,7 +535,7 @@ export default function App() {
       fetchDoctors(true);
     };
     init();
-  }, [isLoggedIn, username]);
+  }, [isLoggedIn, username, loadDocs, refreshCounts, showToast]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -821,8 +831,13 @@ export default function App() {
   };
 
   const handleSync = async () => {
+    if (!isLoggedIn) {
+      setShowLoginModal(true);
+      return;
+    }
     setIsSyncing(true);
     setSyncStatus('Preparing...');
+    fetchDoctors(true); // REFRESH DOCTORS ON SYNC
     try {
       const pendingDocs = await DB.getPendingDocuments(username);
       if (pendingDocs.length === 0) {
@@ -865,14 +880,16 @@ export default function App() {
   };
 
   const handleClearData = async () => {
+    const targetUser = username || 'public_entry';
     if (
       window.confirm(
-        'WARNING: This will DELETE ALL saved documents and local data.\n\nThis action cannot be undone.\n\nDo you want to reset the application?',
+        `WARNING: This will DELETE ALL saved documents and local data for "${targetUser}".\n\nThis action cannot be undone.\n\nDo you want to reset the application?`,
       )
     ) {
       try {
-        // We set a flag and reload to ensure DB connections are closed for a clean delete
+        // Store the target username so we know which DB to clear after reload
         localStorage.setItem('clear_db_pending', 'true');
+        localStorage.setItem('clear_db_target', targetUser);
         window.location.reload();
       } catch (e) {
         console.error(e);
@@ -883,26 +900,64 @@ export default function App() {
 
   // --- RENDER ---
 
-  if (!isLoggedIn) {
-    return <Login onLogin={(user, role) => {
-      setIsLoggedIn(true);
-      setUsername(user);
-      setUserRole(role);
-
-      // Default View Mode based on Role
-      if (role === 'Monitoring' || role === 'Management') {
-        setViewMode('search'); // or 'list'
-      } else {
-        setViewMode('form');
+  const handleHeaderViewModeChange = (mode: ViewMode) => {
+    if (mode === 'search') {
+      if (!isOnlineMode) {
+        showToast('Please enable Online Mode to search.', 'warning');
+        return;
       }
-    }} />;
-  }
+      if (!isLoggedIn) {
+        setShowLoginModal(true);
+        return;
+      }
+    }
+    setViewMode(mode);
+  };
 
   return (
     <div className='min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200'>
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+          <div className="relative w-full max-w-sm">
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 bg-white rounded-full p-1 z-10"
+            >
+              <X size={20} />
+            </button>
+            <Login onLogin={async (user, role) => {
+              // 1. Transfer offline data if applicable
+              if (role !== 'Monitoring') {
+                try {
+                  // We assume 'public_entry' is the guest account name used for offline data
+                  const count = await DB.transferPendingData('public_entry', user);
+                  if (count > 0) {
+                    showToast(`Transferred ${count} offline records to your account.`, 'success');
+                  }
+                } catch (e) {
+                  console.error('Data transfer failed:', e);
+                  showToast('Failed to transfer local data.', 'error');
+                }
+              }
+
+              // 2. Update Session State
+              setIsLoggedIn(true);
+              setUsername(user);
+              setUserRole(role);
+              setShowLoginModal(false);
+
+              // 3. Handle Intents (search/sync)
+              if (role === 'Monitoring' || role === 'Management') {
+                setViewMode('search');
+              }
+            }} />
+          </div>
+        </div>
+      )}
+
       <Header
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        setViewMode={handleHeaderViewModeChange}
         darkMode={darkMode}
         toggleTheme={() => setDarkMode(!darkMode)}
         onSync={handleSync}
@@ -913,7 +968,38 @@ export default function App() {
         onClearData={handleClearData}
         syncStatus={syncStatus}
         userRole={userRole}
-        username={username}
+        username={username === 'public_entry' ? '' : username}
+        isOnlineMode={isOnlineMode}
+        toggleOnlineMode={async () => {
+          if (isOnlineMode) {
+            // Switching to Offline - Always allowed
+            setIsOnlineMode(false);
+            showToast('Switched to Offline Mode', 'success');
+          } else {
+            // Switching to Online - Check Health
+            showToast('Checking connection...', 'info');
+            try {
+              const controller = new AbortController();
+              const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+              const res = await fetch(`${API_BASE_URL}/api/health`, {
+                signal: controller.signal,
+                cache: 'no-store'
+              });
+              clearTimeout(timeoutId);
+
+              if (res.ok) {
+                setIsOnlineMode(true);
+                showToast('Switched to Online Mode', 'success');
+              } else {
+                throw new Error('Health check failed');
+              }
+            } catch (e) {
+              console.error('Connection check failed', e);
+              showToast('Cannot go Online: Server unreachable', 'error');
+            }
+          }
+        }}
       />
 
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>

@@ -342,3 +342,64 @@ export const saveDocDetail = async (detail: DocDetail, username: string): Promis
     transaction.onerror = () => reject(transaction.error);
   });
 };
+/**
+ * Deletes a document and its details.
+ *
+ * @param {string} masterId - The UUID of the document to delete.
+ */
+export const deleteDocument = async (masterId: string, username: string): Promise<void> => {
+  const db = await openDB(username);
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction([MASTER_STORE, DETAIL_STORE], 'readwrite');
+    const masterStore = transaction.objectStore(MASTER_STORE);
+    const detailStore = transaction.objectStore(DETAIL_STORE);
+
+    // Delete Master
+    masterStore.delete(masterId);
+
+    // Delete Details
+    const index = detailStore.index('masterId');
+    const request = index.getAllKeys(masterId);
+    request.onsuccess = () => {
+      const keys = request.result;
+      keys.forEach(key => detailStore.delete(key));
+    };
+
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+  });
+};
+
+/**
+ * Transfers pending and failed documents from one user to another.
+ * Used when a guest user (public_entry) logs in to sync their data.
+ *
+ * @param {string} fromUser - The username of the source (e.g., 'public_entry').
+ * @param {string} toUser - The username of the target (logged-in user).
+ * @returns {Promise<number>} The number of documents transferred.
+ */
+export const transferPendingData = async (fromUser: string, toUser: string): Promise<number> => {
+  try {
+    const pending = await getPendingDocuments(fromUser);
+    const failed = await getFailedDocuments(fromUser);
+    const allDocs = [...pending, ...failed];
+
+    if (allDocs.length === 0) return 0;
+
+    for (const doc of allDocs) {
+      const details = await getDocumentDetails(doc.id, fromUser);
+      // Save to new user DB
+      await saveDocument(doc, details, toUser);
+      // Delete from old user DB
+      await deleteDocument(doc.id, fromUser);
+    }
+
+    // Clear the old DB entirely if it was public_entry to be clean? 
+    // Maybe safer to just delete what we moved.
+
+    return allDocs.length;
+  } catch (error) {
+    console.error("Transfer failed:", error);
+    throw error;
+  }
+};
