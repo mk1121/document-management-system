@@ -228,6 +228,7 @@ export default function App() {
   });
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [username, setUsername] = useState('');
+  const [userRole, setUserRole] = useState(''); // [NEW] Role State
   const [viewMode, setViewMode] = useState<ViewMode>('form');
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
@@ -607,6 +608,10 @@ export default function App() {
   };
 
   const handleEdit = async (doc: DocMaster) => {
+    if (userRole === 'Monitoring') {
+      showToast('Monitoring users cannot edit documents.', 'error');
+      return;
+    }
     setIsProcessing(true);
     try {
       const details = await DB.getDocumentDetails(doc.id, username);
@@ -879,7 +884,18 @@ export default function App() {
   // --- RENDER ---
 
   if (!isLoggedIn) {
-    return <Login onLogin={(user) => { setIsLoggedIn(true); setUsername(user); }} />;
+    return <Login onLogin={(user, role) => {
+      setIsLoggedIn(true);
+      setUsername(user);
+      setUserRole(role);
+
+      // Default View Mode based on Role
+      if (role === 'Monitoring' || role === 'Management') {
+        setViewMode('search'); // or 'list'
+      } else {
+        setViewMode('form');
+      }
+    }} />;
   }
 
   return (
@@ -896,6 +912,8 @@ export default function App() {
         failedCount={failedCount}
         onClearData={handleClearData}
         syncStatus={syncStatus}
+        userRole={userRole}
+        username={username}
       />
 
       <main className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8'>
@@ -1231,7 +1249,7 @@ export default function App() {
                       ID: <span className="font-mono">{selectedOnlinePatient.id}</span> | Phone: {selectedOnlinePatient.phone}
                     </div>
                     <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                      Age: {selectedOnlinePatient.age} | Gender: {selectedOnlinePatient.gender} | Doctor: {selectedOnlinePatient.doctorName}
+                      Age: {selectedOnlinePatient.age} | Gender: {selectedOnlinePatient.gender} | Doctor: {selectedOnlinePatient.doctorName} | DOB: {selectedOnlinePatient.dob}
                     </div>
                   </div>
                   <button
@@ -1263,7 +1281,9 @@ export default function App() {
                           <input
                             type="date"
                             defaultValue={img.nextApp || ''}
+                            disabled={userRole === 'Monitoring'} // [NEW] Read Only
                             onBlur={async (e) => {
+                              if (userRole === 'Monitoring') return; // [NEW] Read Only
                               const newDate = e.target.value;
                               if (newDate === img.nextApp) return;
                               try {
@@ -1280,7 +1300,7 @@ export default function App() {
                                 showToast('Failed to update date', 'error');
                               }
                             }}
-                            className="w-full text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500"
+                            className="w-full text-xs px-2 py-1 border border-gray-200 dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:ring-1 focus:ring-oracle-500 disabled:opacity-50 disabled:bg-gray-100"
                           />
                         </div>
                       </div>
@@ -1293,66 +1313,68 @@ export default function App() {
                   )}
                 </div>
 
-                {/* Add/Update Selection */}
-                {!updateMode ? (
-                  <div className='flex gap-4 mb-4'>
-                    <button
-                      onClick={() => setUpdateMode('add')}
-                      className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
-                    >
-                      <Plus className='text-oracle-600 mb-1' size={32} />
-                      <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (onlineImages.length === 0) {
-                          showToast('No images to update', 'warning');
-                          return;
-                        }
-                        setUpdateMode('update');
-                      }}
-                      className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
-                    >
-                      <RefreshCw className='text-orange-600 mb-1' size={32} />
-                      <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className='flex flex-col gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700'>
-                    <div className='flex justify-between items-center'>
-                      <h4 className='font-bold text-gray-700 dark:text-gray-300'>
-                        {updateMode === 'add' ? 'Adding New Image' : 'Updating Last Image'}
-                      </h4>
+                {/* Add/Update Selection - HIDE for Monitoring */}
+                {userRole !== 'Monitoring' && (
+                  !updateMode ? (
+                    <div className='flex gap-4 mb-4'>
                       <button
-                        onClick={() => setUpdateMode(null)}
-                        className='p-1 text-gray-400 hover:text-red-500 transition-colors'
+                        onClick={() => setUpdateMode('add')}
+                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-oracle-100 dark:border-oracle-900 rounded-xl hover:border-oracle-500 hover:bg-oracle-50 dark:hover:bg-oracle-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
                       >
-                        <X size={20} />
+                        <Plus className='text-oracle-600 mb-1' size={32} />
+                        <span className='font-bold text-gray-800 dark:text-gray-100'>Add New Image</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (onlineImages.length === 0) {
+                            showToast('No images to update', 'warning');
+                            return;
+                          }
+                          setUpdateMode('update');
+                        }}
+                        className='flex-1 py-4 flex flex-col items-center justify-center border-2 border-orange-100 dark:border-orange-900 rounded-xl hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-all bg-white dark:bg-gray-800 shadow-sm'
+                      >
+                        <RefreshCw className='text-orange-600 mb-1' size={32} />
+                        <span className='font-bold text-gray-800 dark:text-gray-100'>Update Last Image</span>
                       </button>
                     </div>
+                  ) : (
+                    <div className='flex flex-col gap-4 mb-8 p-4 bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-200 dark:border-gray-700'>
+                      <div className='flex justify-between items-center'>
+                        <h4 className='font-bold text-gray-700 dark:text-gray-300'>
+                          {updateMode === 'add' ? 'Adding New Image' : 'Updating Last Image'}
+                        </h4>
+                        <button
+                          onClick={() => setUpdateMode(null)}
+                          className='p-1 text-gray-400 hover:text-red-500 transition-colors'
+                        >
+                          <X size={20} />
+                        </button>
+                      </div>
 
-                    <div className='grid grid-cols-2 gap-4'>
-                      <button
-                        onClick={() => setShowCamera(true)}
-                        className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
-                      >
-                        <Camera className='text-gray-800 dark:text-gray-400 mb-1' size={28} />
-                        <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>Camera</span>
-                      </button>
+                      <div className='grid grid-cols-2 gap-4'>
+                        <button
+                          onClick={() => setShowCamera(true)}
+                          className='h-24 flex flex-col items-center justify-center border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm'
+                        >
+                          <Camera className='text-gray-800 dark:text-gray-400 mb-1' size={28} />
+                          <span className='text-sm text-gray-600 dark:text-gray-300 font-medium'>Camera</span>
+                        </button>
 
-                      <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <ImageIcon className="text-gray-400 mb-1" size={28} />
-                        <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={handleOnlineImageUpload}
-                          disabled={uploadingImage}
-                        />
-                      </label>
+                        <label className={`h-24 flex flex-col items-center justify-center border border-dashed border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer hover:border-oracle-500 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800 shadow-sm ${uploadingImage ? 'opacity-50 pointer-events-none' : ''}`}>
+                          <ImageIcon className="text-gray-400 mb-1" size={28} />
+                          <span className="text-sm text-gray-500 dark:text-gray-400 font-medium">Upload File</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={handleOnlineImageUpload}
+                            disabled={uploadingImage}
+                          />
+                        </label>
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
               </div>
             ) : isSearching ? (
@@ -1406,7 +1428,7 @@ export default function App() {
                   No documents found. Switch to Form view to add one.
                 </div>
               ) : (
-                docList.map((doc) => <DocumentCard key={doc.id} doc={doc} onEdit={handleEdit} />)
+                docList.map((doc) => <DocumentCard key={doc.id} doc={doc} onEdit={handleEdit} canEdit={userRole !== 'Monitoring'} />)
               )}
             </div>
 
@@ -1437,7 +1459,8 @@ export default function App() {
               </div>
             )}
           </div>
-        )}
+        )
+        }
       </main >
 
       {/* Full Screen Image Preview Modal with Zoom/Pan */}
@@ -1455,43 +1478,47 @@ export default function App() {
       }
 
       {/* Selection Modal (Crop vs Save) */}
-      {pendingImageUrl && !imageToCrop && (
-        <ImageOptionsDialog
-          src={pendingImageUrl}
-          onCrop={() => setImageToCrop(pendingImageUrl)}
-          onSave={() => pendingImageFile && processFinalImage(pendingImageFile)}
-          loading={uploadingImage || isProcessing}
-          onCancel={() => {
-            setPendingImageFile(null);
-            setPendingImageUrl(null);
-            setUpdateMode(null);
-          }}
-        />
-      )}
+      {
+        pendingImageUrl && !imageToCrop && (
+          <ImageOptionsDialog
+            src={pendingImageUrl}
+            onCrop={() => setImageToCrop(pendingImageUrl)}
+            onSave={() => pendingImageFile && processFinalImage(pendingImageFile)}
+            loading={uploadingImage || isProcessing}
+            onCancel={() => {
+              setPendingImageFile(null);
+              setPendingImageUrl(null);
+              setUpdateMode(null);
+            }}
+          />
+        )
+      }
 
       {/* Crop Modal */}
-      {imageToCrop && (
-        <CropDialog
-          src={imageToCrop}
-          crop={crop}
-          setCrop={setCrop}
-          imgRef={imgRef}
-          loading={uploadingImage}
-          onCropComplete={(c: PixelCrop) => setCompletedCrop(c)}
-          onCancel={() => {
-            if (uploadingImage) return;
-            setImageToCrop(null);
-            // Don't clear pending image, so they can go back to options
-          }}
-          onCrop={async () => {
-            if (uploadingImage || !completedCrop || !imgRef.current) return;
-            const croppedFile = await getCroppedImg(imgRef.current, completedCrop);
-            if (croppedFile) {
-              await processFinalImage(croppedFile);
-            }
-          }}
-        />
-      )}
+      {
+        imageToCrop && (
+          <CropDialog
+            src={imageToCrop}
+            crop={crop}
+            setCrop={setCrop}
+            imgRef={imgRef}
+            loading={uploadingImage}
+            onCropComplete={(c: PixelCrop) => setCompletedCrop(c)}
+            onCancel={() => {
+              if (uploadingImage) return;
+              setImageToCrop(null);
+              // Don't clear pending image, so they can go back to options
+            }}
+            onCrop={async () => {
+              if (uploadingImage || !completedCrop || !imgRef.current) return;
+              const croppedFile = await getCroppedImg(imgRef.current, completedCrop);
+              if (croppedFile) {
+                await processFinalImage(croppedFile);
+              }
+            }}
+          />
+        )
+      }
     </div >
   );
 }

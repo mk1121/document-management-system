@@ -6,9 +6,10 @@ import * as DB from '../services/db';
 interface DocumentCardProps {
   doc: DocMaster;
   onEdit: (doc: DocMaster) => void;
+  canEdit?: boolean;
 }
 
-export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
+export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit, canEdit = true }) => {
 
   const [thumbnail, setThumbnail] = useState<string | null>(null);
 
@@ -33,7 +34,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({ doc, onEdit }) => {
         )}
 
         {/* Edit Button for Unsynced Items */}
-        {doc.syncStatus !== 'synced' && (
+        {canEdit && doc.syncStatus !== 'synced' && (
           <button
             onClick={(e) => {
               e.stopPropagation();

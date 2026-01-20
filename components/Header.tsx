@@ -26,6 +26,8 @@ interface HeaderProps {
   failedCount: number;
   onClearData: () => void;
   syncStatus: string;
+  userRole?: string;
+  username?: string;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -40,6 +42,8 @@ export const Header: React.FC<HeaderProps> = ({
   failedCount,
   onClearData,
   syncStatus,
+  userRole,
+  username,
 }) => {
 
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
@@ -91,17 +95,27 @@ export const Header: React.FC<HeaderProps> = ({
               <h1 className='text-lg sm:text-xl font-bold text-gray-900 dark:text-white hidden sm:block'>
                 DocuDigitize Pro
               </h1>
+              {userRole && (
+                <span className={`ml-2 text-xs font-bold px-2 py-0.5 rounded-full ${userRole === 'Monitoring' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200' :
+                  userRole === 'Management' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                    'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                  }`}>
+                  {userRole}
+                </span>
+              )}
             </div>
 
             {/* Desktop Navigation */}
             <div className='hidden md:flex ml-6 items-baseline space-x-2'>
-              <button
-                onClick={() => setViewMode(viewMode === 'form' ? 'list' : 'form')}
-                className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-              >
-                {viewMode === 'form' ? <List size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
-                {viewMode === 'form' ? 'View List' : 'New Record'}
-              </button>
+              {userRole !== 'Monitoring' && (
+                <button
+                  onClick={() => setViewMode(viewMode === 'form' ? 'list' : 'form')}
+                  className='inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                >
+                  {viewMode === 'form' ? <List size={16} className="mr-2" /> : <PlusCircle size={16} className="mr-2" />}
+                  {viewMode === 'form' ? 'View List' : 'New Record'}
+                </button>
+              )}
 
               <button
                 onClick={() => setViewMode('search')}
@@ -145,6 +159,13 @@ export const Header: React.FC<HeaderProps> = ({
                 {isSyncing && pendingCount > 0 && syncStatus ? '' : `(${pendingCount})`}
               </span>
             </button>
+
+            {/* Username Display */}
+            {username && (
+              <div className="hidden lg:flex items-center text-xs font-medium text-gray-500 dark:text-gray-400 mr-2">
+                {username}
+              </div>
+            )}
 
             {/* Mobile Menu Button */}
             <div className='md:hidden ml-2'>
@@ -191,12 +212,14 @@ export const Header: React.FC<HeaderProps> = ({
       {isMenuOpen && (
         <div className='md:hidden bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 shadow-lg'>
           <div className='px-4 pt-2 pb-4 space-y-1 sm:px-3'>
-            <button
-              onClick={() => { setViewMode(viewMode === 'form' ? 'list' : 'form'); setIsMenuOpen(false); }}
-              className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
-            >
-              {viewMode === 'form' ? <span className='flex items-center'><List size={18} className='mr-2' /> View List</span> : <span className='flex items-center'><PlusCircle size={18} className='mr-2' /> New Record</span>}
-            </button>
+            {userRole !== 'Monitoring' && (
+              <button
+                onClick={() => { setViewMode(viewMode === 'form' ? 'list' : 'form'); setIsMenuOpen(false); }}
+                className='block w-full text-left px-3 py-2 rounded-md text-base font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
+              >
+                {viewMode === 'form' ? <span className='flex items-center'><List size={18} className='mr-2' /> View List</span> : <span className='flex items-center'><PlusCircle size={18} className='mr-2' /> New Record</span>}
+              </button>
+            )}
 
             <button
               onClick={() => { setViewMode('search'); setIsMenuOpen(false); }}

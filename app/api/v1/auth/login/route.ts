@@ -24,25 +24,33 @@ export async function POST(req: NextRequest) {
   try {
     connection = await oracledb.getConnection(dbConfig);
 
+    // Fetch User Type directly using the same logic as FD_LOGIN_F (Case Insensitive)
     const result = await connection.execute(
-      `BEGIN
-         :ret := CASE WHEN FD_LOGIN_F(:u, :p) THEN 1 ELSE 0 END;
-       END;`,
+      `SELECT USER_TYPE 
+       FROM USER_ACCESS_MT 
+       WHERE UPPER(USER_NAME) = UPPER(:u) 
+         AND UPPER(USER_PASSWORD) = UPPER(:p)`,
       {
         u: username,
         p: password,
-        ret: { dir: oracledb.BIND_OUT, type: oracledb.NUMBER },
       },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT } // Return rows as objects
     );
 
-    const isValid = (result.outBinds as any).ret === 1;
+    const rows = result.rows as any[];
 
     const origin = req.headers.get('origin');
-    if (isValid) {
+
+    if (rows && rows.length > 0) {
+      // Login Successful
+      const userType = rows[0].USER_TYPE;
+
       return withCorsHeaders(
         NextResponse.json({
           success: true,
           message: 'Login successful',
+          role: userType || 'Entry User', // Default if null
+          username: username
         }),
         origin,
       );
